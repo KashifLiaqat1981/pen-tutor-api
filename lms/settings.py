@@ -30,7 +30,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'https://pen-tutor-api.onrender.com'
+    'https://pen-tutor-api.onrender.com',
+    'pen-tutor-api.onrender.com'
 ]
 
 AUTH_USER_MODEL = 'authentication.User'
