@@ -28,12 +28,12 @@ SECRET_KEY = 'django-insecure--p-1e30a1&iwvhvvxm-i9!s910bqc*x#o!fia)gc%j5_i+l#w*
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    '*',
     'localhost',
-    '127.0.0.1',
-    'https://pen-tutor-api.onrender.com',
-    'pen-tutor-api.onrender.com'
+    '127.0.0.1'
 ]
 
+CORS_ORIGIN_ALLOW_ALL = True
 AUTH_USER_MODEL = 'authentication.User'
 
 # Application definition
@@ -64,8 +64,7 @@ INSTALLED_APPS = [
      'email_automation',
      'job_portal',
      'support_feedback',
-     'drf_yasg'
-     
+     'drf_yasg'     
 ]
 
 MIDDLEWARE = [
@@ -77,12 +76,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
 ]
 
 ROOT_URLCONF = 'lms.urls'
@@ -169,16 +162,16 @@ SIMPLE_JWT = {
 
 # Email Configuration
 # For development - emails will be printed to console
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # For production - uncomment and configure these settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'misbahyousaf00@gmail.com'
-EMAIL_HOST_PASSWORD = 'xiio vtop aqud hsaw'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'misbahyousaf00@gmail.com'
+# EMAIL_HOST_PASSWORD = 'xiio vtop aqud hsaw'
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Email automation settings
 DEFAULT_FROM_EMAIL = 'noreply@lms.com'

@@ -106,7 +106,7 @@ class Assignment(models.Model):
         return f"{self.course.title} - {self.title}"
 
 class Enrollment(models.Model):
-    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)  # Student portal k liye baad me use karenge
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)  
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
     payment_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('verified', 'Verified')], null=True,blank=True)
     enrolled_at = models.DateTimeField(default=timezone.now)
@@ -115,10 +115,10 @@ class Enrollment(models.Model):
         unique_together = ['student', 'course']  # Prevent duplicate enrollments
     
     def __str__(self):
-        return f"{self.student.username} - Enrollment in {self.course.title}"
+        return f"{self.student.full_name} - Enrollment in {self.course.title}"
 
 class Progress(models.Model):
-    student = models.ForeignKey(User, on_delete=models.CASCADE)  # Student portal k liye baad me use karenge
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE) 
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     video = models.ForeignKey(Video, on_delete=models.CASCADE, null=True, blank=True)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, null=True, blank=True)

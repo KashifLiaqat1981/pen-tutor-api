@@ -174,8 +174,8 @@ def notify_enrollment_direct(sender, instance, created, **kwargs):
                 recipient=admin,
                 sender=instance.student,
                 notification_type='student_enrolled',
-                title=f'New Free Enrollment: {instance.student.get_full_name() or instance.student.username}',
-                message=f'{instance.student.get_full_name() or instance.student.username} has enrolled in the free course "{instance.course.title}".',
+                title=f'New Free Enrollment: {instance.student.full_name() or instance.student.username}',
+                message=f'{instance.student.full_name() or instance.student.username} has enrolled in the free course "{instance.course.title}".',
                 course=instance.course
             )
             notifications_to_create.append(notification)

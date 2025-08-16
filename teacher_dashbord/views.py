@@ -68,6 +68,7 @@ def teacher_dashboard(request):
     return Response({
         'success': True,
         'data': {
+            'profile_picture': teacher.profile_picture.url,
             'teacher_name': teacher.user.username,
             'teacher_bio': teacher.bio,
             'statistics': {

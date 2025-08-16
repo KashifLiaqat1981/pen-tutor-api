@@ -14,6 +14,7 @@ from payments.models import Payment
 from email_automation.tasks import send_enrollment_email
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from authentication.models import StudentProfile
 
 
 @swagger_auto_schema(
@@ -34,9 +35,10 @@ def student_dashboard(request):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
+    student_profile = StudentProfile.objects.get(user=request.user)
     
     # Get student's enrollments
-    enrollments = Enrollment.objects.filter(student=student)
+    enrollments = Enrollment.objects.filter(student=student_profile)
     total_enrollments = enrollments.count()
     completed_courses = enrollments.filter(is_completed=True).count()
     in_progress_courses = enrollments.filter(is_completed=False).count()
@@ -47,7 +49,7 @@ def student_dashboard(request):
     
     # Get recent activities
     recent_enrollments = enrollments.order_by('-enrolled_at')[:5]
-    recent_progress = Progress.objects.filter(student=student).order_by('-completed_at')[:10]
+    recent_progress = Progress.objects.filter(student=student_profile).order_by('-completed_at')[:10]
     
     # Available courses (not enrolled)
     enrolled_course_ids = enrollments.values_list('course_id', flat=True)
@@ -58,6 +60,7 @@ def student_dashboard(request):
     return Response({
         'success': True,
         'data': {
+            'profile_picture':student_profile.profile_picture.url,
             'student_name': student.username,
             'student_email': student.email,
             'statistics': {
@@ -101,7 +104,8 @@ def student_enrolled_courses(request):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
-    enrollments = Enrollment.objects.filter(student=student).select_related('course')
+    student_profile = StudentProfile.objects.get(user=request.user)
+    enrollments = Enrollment.objects.filter(student=student_profile).select_related('course')
     
     courses_data = []
     for enrollment in enrollments:
@@ -115,7 +119,7 @@ def student_enrolled_courses(request):
         )
         
         completed_items = Progress.objects.filter(
-            student=student,
+            student=student_profile,
             course=course
         ).count()
         
@@ -133,7 +137,7 @@ def student_enrolled_courses(request):
         
         course_data = {
             'enrollment_id': enrollment.id,
-            'course': CourseDetailSerializer(course).data,
+            'course': CourseDetailSerializer(course,context={'request': request}).data,
             'enrolled_at': enrollment.enrolled_at,
             'is_completed': enrollment.is_completed,
             'progress_percentage': round(progress_percentage, 2),
@@ -183,11 +187,14 @@ def enroll_in_course(request, course_id):
     student = request.user
     
     try:
+        student_profile = StudentProfile.objects.get(user=request.user)
+        print("Studnet: ",student_profile.full_name)
+
         course = Course.objects.get(id=course_id, is_active=True)
         
         # Check if already enrolled
         existing_enrollment = Enrollment.objects.filter(
-            student=student,
+            student=student_profile,
             course=course
         ).first()
         
@@ -213,7 +220,7 @@ def enroll_in_course(request, course_id):
         
         # Create enrollment
         enrollment = Enrollment.objects.create(
-            student=student,
+            student=student_profile,
             course=course
         )
         send_enrollment_email(
@@ -231,6 +238,12 @@ def enroll_in_course(request, course_id):
                 'enrolled_at': enrollment.enrolled_at
             }
         }, status=status.HTTP_201_CREATED)
+    
+    except StudentProfile.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
         
     except Course.DoesNotExist:
         return Response({
@@ -267,13 +280,14 @@ def student_course_progress(request, course_id):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
+    student_profile = StudentProfile.objects.get(user=request.user)
     
     try:
         course = Course.objects.get(id=course_id, is_active=True)
         
         # Check if student is enrolled
         enrollment = Enrollment.objects.filter(
-            student=student,
+            student=student_profile,
             course=course
         ).first()
         
@@ -285,7 +299,7 @@ def student_course_progress(request, course_id):
         
         # Get progress data
         progress_records = Progress.objects.filter(
-            student=student,
+            student=student_profile,
             course=course
         )
         
@@ -407,13 +421,13 @@ def mark_video_completed(request, video_id):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
-    
+    student_profile = StudentProfile.objects.get(user=request.user)
     try:
         video = Video.objects.get(id=video_id)
         
         # Check if student is enrolled in the course
         enrollment = Enrollment.objects.filter(
-            student=student,
+            student=student_profile,
             course=video.course
         ).first()
         
@@ -425,7 +439,7 @@ def mark_video_completed(request, video_id):
         
         # Mark video as completed
         progress, created = Progress.objects.get_or_create(
-            student=student,
+            student=student_profile,
             course=video.course,
             video=video,
             defaults={'completed_at': timezone.now()}
@@ -477,13 +491,14 @@ def mark_quiz_completed(request, quiz_id):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
+    student_profile = StudentProfile.objects.get(user=request.user)
     
     try:
         quiz = Quiz.objects.get(id=quiz_id)
         
         # Check if student is enrolled in the course
         enrollment = Enrollment.objects.filter(
-            student=student,
+            student=student_profile,
             course=quiz.course
         ).first()
         
@@ -495,7 +510,7 @@ def mark_quiz_completed(request, quiz_id):
         
         # Mark quiz as completed
         progress, created = Progress.objects.get_or_create(
-            student=student,
+            student=student_profile,
             course=quiz.course,
             quiz=quiz,
             defaults={'completed_at': timezone.now()}
@@ -609,10 +624,11 @@ def available_courses(request):
         }, status=status.HTTP_403_FORBIDDEN)
     
     student = request.user
+    student_profile = StudentProfile.objects.get(user=request.user)
     
     # Get enrolled course IDs
     enrolled_course_ids = Enrollment.objects.filter(
-        student=student
+        student=student_profile
     ).values_list('course_id', flat=True)
     
     # Get available courses
@@ -633,7 +649,7 @@ def available_courses(request):
             Q(teacher__user__username__icontains=search)
         )
     
-    serializer = CourseListSerializer(available_courses, many=True)
+    serializer = CourseListSerializer(available_courses, many=True,context={'request':request})
     
     return Response({
         'success': True,

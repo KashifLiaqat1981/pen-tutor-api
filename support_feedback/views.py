@@ -9,6 +9,7 @@ from .serializers import (
     CourseFeedbackSerializer, TeacherFeedbackSerializer,
     TicketReplySerializer, TicketReplyCreateSerializer
 )
+from authentication.models import StudentProfile,TeacherProfile
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -42,10 +43,12 @@ class CourseFeedbackListCreateView(generics.ListCreateAPIView):
     serializer_class = CourseFeedbackSerializer
     
     def get_queryset(self):
-        return CourseFeedback.objects.filter(user=self.request.user)
+        student_profile = StudentProfile.objects.get(user=self.request.user)
+        return CourseFeedback.objects.filter(user=student_profile)
     
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        student_profile = StudentProfile.objects.get(user=self.request.user)
+        serializer.save(user=student_profile)
 
 # Teacher Feedback Views  
 class TeacherFeedbackListCreateView(generics.ListCreateAPIView):

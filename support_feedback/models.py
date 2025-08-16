@@ -1,6 +1,8 @@
 # support_feedback/models.py
 from django.db import models
 from django.conf import settings
+from courses.models import Course
+from authentication.models import StudentProfile,TeacherProfile
 
 class SupportTicket(models.Model):
     TICKET_STATUS = [
@@ -41,14 +43,14 @@ class CourseFeedback(models.Model):
         (5, '5 Stars'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    course_name = models.CharField(max_length=200)  # Ya phir Course model ka FK use kar sakte hain
+    user = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="reviews")  # Ya phir Course model ka FK use kar sakte hain
     rating = models.IntegerField(choices=RATING_CHOICES)
     feedback_text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.course_name} - {self.rating} stars"
+        return f"{self.course} - {self.rating} stars"
     
     class Meta:
         ordering = ['-created_at']

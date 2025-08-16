@@ -1,164 +1,18 @@
 ./course_videos
-# Byte-compiled / optimized / C extensions
-__pycache__/
-*.py[cod]
-*$py.class
+./media
+./node_modules
+./static
+./staticfiles
+./venv
 
-# C extensions
-*.so
+# ignore pycache
+__pycache__
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-*.whl
-pip-wheel-metadata/
+# ignore migrations
+migrations/
 
-# Virtualenvs
-env/
-venv/
-ENV/
-.venv/
-venv.bak/
-env.bak/
-.venv/*
-
-# Pyenv / Python version managers
-.python-version
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-
-# Pytest
-.pytest_cache/
-
-# Type checkers / linters caches
-.mypy_cache/
-.pyre/
-.ruff_cache/
-.pytype/
-
-# Django stuff
-*.log
-*.pot
-*.py[co]
-db.sqlite3
-db.sqlite3-journal
-local_settings.py
-# collected static files (adjust if you keep collected static in repo)
-staticfiles/
-# if your collectstatic uses a different directory, add that here (e.g. /static_collected/)
-# media/uploads
-media/
-# celery
-celerybeat-schedule
-celerybeat.pid
-
-# Secrets / env files
+# ignore .env
 .env
-.env.*          # ignore environment variants (e.g. .env.local). Keep .env.example if you use it.
 
-# Editor / IDE
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-*.code-workspace
-
-# JetBrains
-*.iml
-.idea/
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Linux
-*~
-
-# Node / front-end
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnp.*
-.pnp.js
-build/
-dist/
-.next/
-.nuxt/
-out/
-
-# Static asset caches / generated files
-*.map
-.sass-cache/
-.cache-loader/
-
-# Logs and temp files
-logs/
-*.log
-*.tmp
-*.temp
-*.swp
-*~
-
-# Packaging files
-*.manifest
-*.spec
-
-# IDE / project metadata
-.project
-.metadata/
-*.classpath
-*.settings/
-*.factorypath
-
-# Backup files
-*.bak
-*.orig
-*.save
-
-# Docker
-docker-compose.override.yml
-env_files/    # if you store env files here, otherwise list them explicitly
-
-# OS thumbnails
-Thumbs.db
-
-# Optional: ignore compiled C/C++ binary files
-*.o
-*.a
-*.dll
-*.exe
-
-# Custom: local debug / machine-specific files
-/local_settings.py
+# ignore .pyc
+*.pyc

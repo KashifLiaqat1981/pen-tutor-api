@@ -8,11 +8,16 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from rest_framework.permissions import   AllowAny
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from support_feedback.models import CourseFeedback
+from django.db.models import Prefetch
 from .models import Course, Video, Quiz, Assignment
 from .serializers import (
     CourseListSerializer, CourseDetailSerializer, VideoDetailSerializer,
-    QuizSerializer, AssignmentSerializer
+    QuizSerializer, AssignmentSerializer,TeacherSerializer
 )
+from authentication.models import TeacherProfile
+
 
 class CourseListView(ListAPIView):
     """
@@ -54,6 +59,8 @@ class CourseListView(ListAPIView):
             ).order_by('-enrollment_count')[:6]
 
         return queryset
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def course_detail(request, course_id):
@@ -62,10 +69,9 @@ def course_detail(request, course_id):
     """
     try:
         course = Course.objects.select_related('teacher__user').prefetch_related(
-            'videos', 'quizzes', 'assignments'
-        ).get(id=course_id, is_active=True)
+            'videos', 'quizzes', 'assignments', 'reviews'    ).get(id=course_id, is_active=True)
         
-        serializer = CourseDetailSerializer(course)
+        serializer = CourseDetailSerializer(course,context = {'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Course.DoesNotExist:
@@ -158,5 +164,51 @@ def video_quiz_assignments(request, video_id):
     except Video.DoesNotExist:
         return Response(
             {'error': 'Video not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+
+
+
+# =======================
+# Get teachers Profile
+# =========================
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_all_teachers(request):
+    """
+    List all teachers for students to browse.
+    """
+    # if request.user.role != 'student':
+    #     return Response({
+    #         "success": False,
+    #         "message": "Access denied. Student privileges required."
+    #     }, status=status.HTTP_403_FORBIDDEN)
+
+    teachers = TeacherProfile.objects.select_related('user').filter(user__role='teacher')
+    serializer = TeacherSerializer(teachers, many=True,context={"request":request})
+    return Response({
+        "success": True,
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def view_teacher_profile(request, teacher_id):
+    """
+    View details of a specific teacher profile.
+    """
+    try:
+        teacher_profile = get_object_or_404(
+            TeacherProfile.objects.select_related('user'),
+            id=teacher_id,  # or user__id=teacher_id depending on your needs
+            user__role='teacher'
+        )
+        serializer = TeacherSerializer(teacher_profile,context={'request':request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except TeacherProfile.DoesNotExist:
+        return Response(
+            {'error': 'Teacher profile not found'},
             status=status.HTTP_404_NOT_FOUND
         )
