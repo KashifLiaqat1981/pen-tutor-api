@@ -50,7 +50,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('', include('email_automation.urls')),
     path('api/feedback/',include('support_feedback.urls')),
-    path('api/job-board/', include('job_portal.urls')),
+    path('api/job-board/', include('job_board.urls')),
     path('api/chat/', include('chat.urls')),
      path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),

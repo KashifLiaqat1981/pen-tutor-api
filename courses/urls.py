@@ -12,7 +12,7 @@ urlpatterns = [
     # Video detail
     path('videos/<int:video_id>/', views.video_detail, name='video_detail'),
     path('videos/<int:video_id>/quiz-assignments/', views.video_quiz_assignments, name='video_quiz_assignments'),
-
+# for teacher
      path('teachers/', views.list_all_teachers, name='list-all-teachers'),
      path('teachers/<int:teacher_id>/', views.view_teacher_profile, name='view-teacher-profile')
     

@@ -20,7 +20,8 @@ def notify_video_upload(sender, instance, created, **kwargs):
     if created:  # Only for new videos
         # Get all enrolled students in the course
         enrolled_students = instance.course.enrollments.filter(
-            student__role='student'
+           payment_status='verified',
+            student__isnull=False
         ).select_related('student')
         
         # Create notifications for each enrolled student
@@ -50,7 +51,8 @@ def notify_quiz_creation(sender, instance, created, **kwargs):
     if created:  # Only for new quizzes
         # Get all enrolled students in the course
         enrolled_students = instance.course.enrollments.filter(
-            student__role='student'
+            payment_status='verified',
+            student__isnull=False
         ).select_related('student')
         
         # Create notifications for each enrolled student
@@ -130,7 +132,8 @@ def notify_live_class_scheduled(sender, instance, created, **kwargs):
     if created and instance.meeting_type == 'lecture' and instance.course and instance.scheduled_time:
         # Get all enrolled students in the course
         enrolled_students = instance.course.enrollments.filter(
-            student__role='student'
+            payment_status='verified',
+            student__isnull=False
         ).select_related('student')
         
         # Format the scheduled time
@@ -166,16 +169,22 @@ def notify_enrollment_direct(sender, instance, created, **kwargs):
         # Get admin users and the course teacher
         admin_users = User.objects.filter(role__in=['admin', 'subadmin'])
         teacher = instance.course.teacher.user
+
+        student_name = (
+            instance.student.full_name or
+            instance.student.user.get_full_name() or
+            instance.student.user.username
+        )
         
         # Create notifications for admins
         notifications_to_create = []
         for admin in admin_users:
             notification = Notification(
                 recipient=admin,
-                sender=instance.student,
+                sender=instance.student.user,
                 notification_type='student_enrolled',
-                title=f'New Free Enrollment: {instance.student.full_name() or instance.student.username}',
-                message=f'{instance.student.full_name() or instance.student.username} has enrolled in the free course "{instance.course.title}".',
+                title=f'New Free Enrollment: {student_name}',
+                message=f'{student_name} has enrolled in the free course "{instance.course.title}".',
                 course=instance.course
             )
             notifications_to_create.append(notification)
@@ -184,10 +193,10 @@ def notify_enrollment_direct(sender, instance, created, **kwargs):
         if teacher not in admin_users:
             notification = Notification(
                 recipient=teacher,
-                sender=instance.student,
+                sender=instance.student.user,
                 notification_type='student_enrolled',
-                title=f'New Student: {instance.student.get_full_name() or instance.student.username}',
-                message=f'{instance.student.get_full_name() or instance.student.username} has enrolled in your free course "{instance.course.title}".',
+                title=f'New Student: {student_name}',
+                message=f'{student_name} has enrolled in your free course "{instance.course.title}".',
                 course=instance.course
             )
             notifications_to_create.append(notification)

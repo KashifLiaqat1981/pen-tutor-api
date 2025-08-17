@@ -89,7 +89,8 @@ class Meeting(models.Model):
     def get_enrolled_students(self):
         """Get students enrolled in course for lecture meetings"""
         if self.meeting_type == 'lecture' and self.course:
-            return self.course.enrollments.filter(student__role='student')
+            return self.course.enrollments.filter(studentt__student_profile__isnull=False
+        ).select_related('student__student_profile')
         return []
 
     def start_meeting(self):
@@ -133,7 +134,7 @@ class Meeting(models.Model):
             # Check if user is enrolled in the course
           
             try:
-                enrollment = Enrollment.objects.get(student=user, course=self.course)
+                enrollment = Enrollment.objects.get(student=user, course=self.course,student__student_profile__isnull=False)
             except Enrollment.DoesNotExist:
                 return False, "You are not enrolled in this course"
             

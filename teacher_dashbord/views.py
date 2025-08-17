@@ -13,7 +13,7 @@ from django.core.mail import send_mail
 from datetime import datetime
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
+from .permissions import IsTeacher
 
 @swagger_auto_schema(
     method='get',
@@ -68,7 +68,7 @@ def teacher_dashboard(request):
     return Response({
         'success': True,
         'data': {
-            'profile_picture': teacher.profile_picture.url,
+            'profile_picture': teacher.profile_picture.url if teacher.profile_picture else None,
             'teacher_name': teacher.user.username,
             'teacher_bio': teacher.bio,
             'statistics': {
@@ -828,16 +828,16 @@ def teacher_quiz_detail(request, quiz_id):
    security=[{'Bearer': []}]
 )
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsTeacher])
 def teacher_course_live_classes(request, course_id):
     """
     Get course live classes or schedule new live class
     """
-    if request.user.role != 'teacher':
-        return Response({
-            'success': False,
-            'message': 'Access denied. Teacher privileges required.'
-        }, status=status.HTTP_403_FORBIDDEN)
+    # if not hasattr(request.user, 'teacher_profile'):
+    #     return Response({
+    #         'success': False,
+    #         'message': 'Access denied. Teacher privileges required.'
+    #     }, status=status.HTTP_403_FORBIDDEN)
     
     try:
         teacher = TeacherProfile.objects.get(user=request.user)

@@ -1,8 +1,8 @@
 # teacher_dashboard/serializers.py
 
 from rest_framework import serializers
-from courses.models import Course, Video, Quiz, Assignment, Enrollment, Teacher , Question
-from django.contrib.auth.models import User
+from courses.models import Course, Video, Quiz, Assignment, Enrollment , Question
+
 from meetings.models import Meeting
 
 
@@ -79,15 +79,15 @@ class TeacherQuizSerializer(serializers.ModelSerializer):
         return quiz
 
 class EnrolledStudentSerializer(serializers.ModelSerializer):
-    # student_username = serializers.CharField(source='student.username', read_only=True)
-    # student_email = serializers.CharField(source='student.email', read_only=True)
+    student_username = serializers.CharField(source='student.username', read_only=True)
+    student_email = serializers.CharField(source='student.email', read_only=True)
     course_title = serializers.CharField(source='course.title', read_only=True)
     
     class Meta:
         model = Enrollment
         fields = [
             'id', 'course_title', 'enrolled_at', 'is_completed'
-            # 'student_username', 'student_email'  # Add these when student model is ready
+            'student_username', 'student_email'  # Add these when student model is ready
         ]
         read_only_fields = ['id', 'enrolled_at', 'course_title']
 

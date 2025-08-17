@@ -29,11 +29,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     '*',
-    'localhost',
-    '127.0.0.1'
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True
+
 AUTH_USER_MODEL = 'authentication.User'
 
 # Application definition
@@ -62,9 +61,10 @@ INSTALLED_APPS = [
      'alerts',
      'notifications',
      'email_automation',
-     'job_portal',
+     'job_board',
      'support_feedback',
-     'drf_yasg'     
+     'drf_yasg'
+     
 ]
 
 MIDDLEWARE = [

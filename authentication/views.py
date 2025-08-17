@@ -3,6 +3,7 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
 from django.core.mail import send_mail
@@ -409,42 +410,127 @@ class CreateStudentProfileView(APIView):
 
 class CreateTeacherProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
     @swagger_auto_schema(
         request_body=TeacherProfileSerializer,
         responses={
-        201: openapi.Response('Registration Successful', TeacherProfileSerializer),
-        400: 'Bad Request'
-    }
+            201: openapi.Response('Registration Successful', TeacherProfileSerializer),
+            400: 'Bad Request'
+        }
     )
     def post(self, request):
+        # Prevent duplicate
         if hasattr(request.user, 'teacher_profile'):
             return Response({"success": False, "message": "Teacher profile already exists"}, status=400)
-        
-         # 1️⃣ Parse the JSON string from `data` key in form-data
-        try:
-            data_json = json.loads(request.data.get('data', '{}'))
-        except json.JSONDecodeError:
-            return Response({"success": False, "message": "Invalid JSON in 'data' field"}, status=400)
-        
-        # 2️⃣ Merge files into data dictionary
-        data_json['resume'] = request.FILES.get('resume')
-        data_json['degree_certificates'] = request.FILES.get('degree_certificates')
-        data_json['id_proof'] = request.FILES.get('id_proof')
 
-        # 3️⃣ Inject user and email
-        data_json['user'] = request.user
-        data_json['full_name'] = f"{request.user.first_name} {request.user.last_name}"
-        data_json['email'] = request.user.email
-        data_json['status'] = "pending"
+        # copy request.data (QueryDict) to a mutable dict
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
 
+        # Helper to get repeated fields
+        def get_repeated(key):
+            try:
+                return request.data.getlist(key)
+            except Exception:
+                # getlist may not be available — fall back to single value
+                v = request.data.get(key)
+                return [v] if v is not None else []
 
-        serializer = TeacherProfileSerializer(data=data_json)
+        # Fields we expect to be JSON/list/object
+        json_fields = [
+            "expertise_areas",
+            "education",
+            "certifications",
+            "awards",
+            "publications",
+            "languages_spoken",
+            "availability_schedule",
+            "preferred_teaching_methods",
+            "course_categories",
+            "notification_preferences",
+            "social_links",
+            "additional_documents",
+        ]
+
+        # Normalize array-style repeated keys (field[]), prefer explicit field value if present
+        for field in json_fields:
+            # If plain field exists and is non-empty, leave it (serializer will parse it)
+            raw = request.data.get(field)
+            if raw not in (None, ""):
+                # plain value present — keep as-is (likely JSON string or already parsed)
+                data[field] = raw
+                continue
+
+            # Otherwise look for repeated `field[]`
+            arr = get_repeated(f"{field}[]")
+            if arr:
+                # arr may contain JSON strings or primitive strings. Try to parse individual items, else keep raw.
+                normalized = []
+                for item in arr:
+                    if item is None or item == "":
+                        continue
+                    if isinstance(item, str):
+                        item = item.strip()
+                        # try JSON parse if looks like json
+                        if (item.startswith("{") and item.endswith("}")) or (item.startswith("[") and item.endswith("]")):
+                            try:
+                                normalized.append(json.loads(item))
+                                continue
+                            except Exception:
+                                pass
+                        normalized.append(item)
+                    else:
+                        normalized.append(item)
+                # set JSON-string representation so serializer.to_internal_value() can json.loads it
+                data[field] = json.dumps(normalized)
+                continue
+
+            # For nested objects like availability_schedule, look for keys like availability_schedule[Monday]
+            # collect subkeys
+            nested = {}
+            for key in request.data.keys():
+                if key.startswith(f"{field}[") and key.endswith("]"):
+                    # form key like availability_schedule[Monday]
+                    subkey = key[len(field) + 1 : -1]
+                    val = request.data.get(key)
+                    # if the value looks like a JSON array string, parse it, else try getlist for repeated items
+                    if val and isinstance(val, str) and val.strip().startswith("["):
+                        try:
+                            nested[subkey] = json.loads(val)
+                            continue
+                        except Exception:
+                            pass
+                    # try getlist for availability_schedule[Monday][]
+                    sub_arr = get_repeated(f"{field}[{subkey}][]")
+                    if sub_arr:
+                        nested[subkey] = sub_arr
+                    elif val not in (None, ""):
+                        nested[subkey] = [val] if not isinstance(val, list) else val
+
+            if nested:
+                data[field] = json.dumps(nested)
+
+        # Attach files explicitly if present (some serializers expect file objects in data)
+        for file_field in ("resume", "degree_certificates", "id_proof", "profile_picture", "cnic_front", "cnic_back", "degree_image"):
+            f = request.FILES.get(file_field)
+            if f:
+                data[file_field] = f
+
+        # Inject user-related fields if you want defaults (full_name/email/status)
+        # Only set if not already provided by client
+        if not data.get("full_name"):
+            data["full_name"] = f"{request.user.first_name} {request.user.last_name}".strip()
+        if not data.get("email"):
+            data["email"] = request.user.email or ""
+        data["status"] = data.get("status", "pending")
+
+        # Instantiate serializer — serializer.to_internal_value() will parse JSON strings
+        serializer = TeacherProfileSerializer(data=data)
         if serializer.is_valid():
-            serializer.save(user=request.user, email=request.user.email, status="pending")  # pending approval
+            serializer.save(user=request.user, email=request.user.email, status="pending")
             return Response({"success": True, "message": "Teacher profile submitted for approval", "data": serializer.data}, status=201)
-        
-        return Response({"success": False, "errors": serializer.errors}, status=400)
 
+        return Response({"success": False, "errors": serializer.errors}, status=400)
 # ===================================
 # Admin Content
 # ===================================

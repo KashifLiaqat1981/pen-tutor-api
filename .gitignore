@@ -1,18 +1,21 @@
 ./course_videos
 ./media
-./node_modules
-./static
-./staticfiles
-./venv
+
+media/
+media/**
+
+migrations/
+./migrations
+/migrations/**
 
 # ignore pycache
-__pycache__
+__pycache__/
+\__pycache__
+./.pyc
+./.pycache
+./__pycache__
+./**/__pycache__
 
-# ignore migrations
-migrations/
-
-# ignore .env
-.env
-
-# ignore .pyc
-*.pyc
+# ignore node_modules
+./**/
+.venv

@@ -304,7 +304,7 @@
     },
 
     {
-      "tag": "hr_job_portal",
+      "tag": "hr_job_board",
       "items": [
         { "name": "Categories (List/Create)", "method": "GET|POST", "path": "/api/job-board/categories/", "request(POST)": { "body": { "name": "string", "description": "string" } } },
         { "name": "Skills (List/Create)", "method": "GET|POST", "path": "/api/job-board/skills/", "request(POST)": { "body": { "name": "string", "category": "int" } } },
