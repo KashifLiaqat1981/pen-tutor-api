@@ -174,11 +174,11 @@ def teacher_courses(request):
                 'data': serializer.data
             }, status=status.HTTP_201_CREATED)
         
-        return Response({
-            'success': False,
-            'message': 'Course creation failed',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+    return Response({
+        'success': False,
+        'message': 'Course creation failed',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -1013,8 +1013,6 @@ def teacher_topic_assignments(request, topic_id):
                 'assignments': serializer.data
             }
         }, status=status.HTTP_200_OK)
-    
-    
 
 
 # ==============================
