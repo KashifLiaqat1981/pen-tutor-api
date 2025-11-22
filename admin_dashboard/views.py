@@ -188,6 +188,7 @@ def admin_review_profile(request):
     profile_id = request.query_params.get('profile_id')
     action = request.data.get('action')
 
+
     if profile_type not in ['student', 'teacher']:
         return Response({'success': False, 'message': 'Invalid profile type'}, status=400)
     if action not in ['approve', 'reject']:

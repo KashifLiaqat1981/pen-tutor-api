@@ -24,10 +24,8 @@ urlpatterns = [
     path('resend-verification/', ResendVerificationEmailView.as_view(), name='resend-verification'),
     path('admin/users/', AdminUserListView.as_view(), name='admin-users'),
     path('admin/users/<uuid:user_id>/role/', AdminRoleUpdateView.as_view(), name='admin-role-update'),
-
     # request for teacher/studnet
     path('student-profile/create/', CreateStudentProfileView.as_view(), name='create-student-profile'),
     path('teacher-profile/create/', CreateTeacherProfileView.as_view(), name='create-teacher-profile'),
-
     path('student-query/', StudentQueryView.as_view(), name='student-query'),
 ]
