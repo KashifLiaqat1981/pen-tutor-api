@@ -65,16 +65,16 @@ INSTALLED_APPS = [
     'payments',
     'meetings',
     'chat',
-     "django_celery_beat",
-     "calendersync",
-     'alerts',
-     'notifications',
-     'email_automation',
-     'job_board',
-     'support_feedback',
-     'individual_live_class',
-     'drf_yasg',
-     'chate_box'
+    'django_celery_beat',
+    'calendersync',
+    'alerts',
+    'notifications',
+    'email_automation',
+    'job_board',
+    'support_feedback',
+    'individual_live_class',
+    'drf_yasg',
+    'chate_box'
      
 ]
 
@@ -114,8 +114,12 @@ WSGI_APPLICATION = 'lms.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'post',
+        'USER': 'postgres',
+        'PASSWORD': '123456789',
+        'HOST': 'localhost',
+        'PORT': '5432'
     }
 }
 
@@ -180,8 +184,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'misbahyousaf00@gmail.com'
-EMAIL_HOST_PASSWORD = 'xiio vtop aqud hsaw'
+EMAIL_HOST_USER = 'adilsyed8118@gmail.com'
+EMAIL_HOST_PASSWORD = 'lkgi aafo vcgu jazb'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Email automation settings
