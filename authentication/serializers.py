@@ -62,6 +62,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     preferred_learning_time = serializers.JSONField(required=False)
     notification_preferences = serializers.JSONField(required=False)
     language_preferences = serializers.JSONField(required=False)
+    member_since = serializers.DateTimeField(source='user.date_joined', read_only=True)
 
     class Meta:
         model = StudentProfile

@@ -38,6 +38,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://pentutor.vercel.app',
     'https://pen-tutor.vercel.app',
     'https://pen-tutor-.vercel.app',
+    'https://pen-tutor-three.vercel.app',
     'https://pentutor.com',
 ]
 

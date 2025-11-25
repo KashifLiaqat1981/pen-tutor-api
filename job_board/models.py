@@ -11,13 +11,21 @@ User = settings.AUTH_USER_MODEL
 class JobPost(models.Model):
     TEACHING_MODE_CHOICES = [
         ('remote', 'Remote'),
-        ('physical', 'Physical'),
+        ('in person', 'In Person'),
+    ]
+
+    DURATION_CHOICES = [
+        ('hours', 'Hours'),
+        ('days', 'Days'),
+        ('weeks', 'Weeks'),
+        ('months', 'Months'),
     ]
     
     BUDGET_TYPE_CHOICES = [
         ('per_hour', 'Per Hour'),
         ('per_day', 'Per Day'),
         ('total', 'Total Amount'),
+        ('fixed', 'Fixed'),
     ]
     
     STATUS_CHOICES = [
@@ -77,6 +85,7 @@ class JobPost(models.Model):
     duration_unit = models.CharField(
         max_length=20,
         default='hours',
+        choices=DURATION_CHOICES,
         help_text="e.g., hours, days, sessions"
     )
     
