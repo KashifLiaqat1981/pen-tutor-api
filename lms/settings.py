@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure--p-1e30a1&iwvhvvxm-i9!s910bqc*x#o!fia)gc%j5_i+l#w*
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '*',
+    "https://pen-tutor-api.onrender.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -42,6 +42,12 @@ CORS_ALLOWED_ORIGINS = [
     'https://pentutor.com',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://pen-tutor-three.vercel.app",
+    "https://*.vercel.app",    # optional, for preview deployments
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 AUTH_USER_MODEL = 'authentication.User'
 
@@ -277,3 +283,4 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
