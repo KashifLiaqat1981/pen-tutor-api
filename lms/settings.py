@@ -29,6 +29,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "pen-tutor-api.onrender.com",
+    "https://pen-tutor-api.onrender.com",
+    "www.pen-tutor-api.onrender.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -276,5 +278,6 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
 
