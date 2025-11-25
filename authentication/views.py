@@ -310,23 +310,23 @@ class ProfileUpdateView(APIView):
         else:
             return None, None
         return profile, serializer_class
-    
+
     def get(self, request):
         """Retrieve the user's profile."""
         profile, serializer_class = self.get_profile_and_serializer(request.user)
-        
+
         if not profile or not serializer_class:
             return Response({
                 'success': False,
                 'message': 'Invalid user role or profile not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         serializer = serializer_class(profile)
         return Response({
             'success': True,
             'data': serializer.data
         }, status=status.HTTP_200_OK)
-    
+
 
     @swagger_auto_schema(
     request_body=StudentProfileSerializer,  # or TeacherProfileSerializer dynamically
@@ -470,8 +470,6 @@ class CreateTeacherProfileView(APIView):
         data_json['id_proof'] = request.FILES.get('id_proof')
 
         # 3️⃣ Inject user and email
-        data_json['user'] = request.user
-        data_json['full_name'] = f"{request.user.first_name} {request.user.last_name}"
         data_json['email'] = request.user.email
         data_json['status'] = "pending"
 

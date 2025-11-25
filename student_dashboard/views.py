@@ -56,13 +56,16 @@ def student_dashboard(request):
     available_courses = Course.objects.filter(
         is_active=True
     ).exclude(id__in=enrolled_course_ids)[:6]
-    
+
+    member_since = request.user.date_joined.strftime("%d %B %Y")
+
     return Response({
         'success': True,
         'data': {
-            'profile_picture':student_profile.profile_picture.url,
+            'profile_picture':student_profile.profile_picture.url if student_profile.profile_picture else None,
             'student_name': student.username,
             'student_email': student.email,
+            'member_since': member_since,
             'statistics': {
                 'total_enrollments': total_enrollments,
                 'completed_courses': completed_courses,

@@ -65,13 +65,16 @@ def teacher_dashboard(request):
     
     # Recent courses
     recent_courses = courses.order_by('-created_at')[:5]
-    
+    member_since = request.user.date_joined.strftime("%d %B %Y")
+
     return Response({
         'success': True,
         'data': {
             'profile_picture': teacher.profile_picture.url if teacher.profile_picture else None,
-            'teacher_name': teacher.user.username,
+            'teacher_name': teacher.user.get_full_name(),
             'teacher_bio': teacher.bio,
+            'member_since': member_since,
+            'employee_id': teacher.employee_id,
             'statistics': {
                 'total_courses': total_courses,
                 'active_courses': active_courses,
