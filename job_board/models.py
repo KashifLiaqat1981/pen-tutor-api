@@ -15,10 +15,10 @@ class JobPost(models.Model):
     ]
 
     DURATION_CHOICES = [
-        ('hours', 'Hours'),
-        ('days', 'Days'),
-        ('weeks', 'Weeks'),
-        ('months', 'Months'),
+        ('hour', 'Hour'),
+        ('day', 'Day'),
+        ('week', 'Week'),
+        ('month', 'Month'),
     ]
     
     BUDGET_TYPE_CHOICES = [
@@ -34,6 +34,22 @@ class JobPost(models.Model):
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
+    ]
+
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('any', 'Any'),
+    ]
+
+    DAYS_CHOICES = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
     ]
     
     # Core fields
@@ -95,6 +111,27 @@ class JobPost(models.Model):
         max_length=200, 
         blank=True,
         help_text="Required for physical teaching mode"
+    )
+
+    # Preferred time to study (e.g., 5:00 PM)
+    time_to_study = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Preferred study time"
+    )
+
+    # Preferred days to study (multiple days)
+    days_to_study = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Comma-separated list of days e.g. monday,tuesday"
+    )
+
+    # Preferred teacher gender
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        default='any'
     )
     
     # Status and management

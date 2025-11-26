@@ -37,7 +37,8 @@ class JobPostAdmin(admin.ModelAdmin):
         ('Job Details', {
             'fields': (
                 'teaching_mode', 'location', 'budget_amount', 'budget_type',
-                'duration_value', 'duration_unit', 'deadline'
+                'duration_value', 'duration_unit', 'days_to_study', 'time_to_study',
+                'gender', 'deadline'
             )
         }),
         ('Status & Management', {
