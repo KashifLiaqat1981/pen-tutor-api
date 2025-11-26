@@ -60,7 +60,8 @@ class JobPostCreateSerializer(serializers.ModelSerializer):
         fields = [
             'title', 'description', 'course', 'subject_text', 'teaching_mode',
             'budget_amount', 'budget_type', 'duration_value', 'duration_unit',
-            'additional_notes', 'location', 'deadline'
+            'additional_notes', 'location', 'deadline', 'time_to_study',
+            'days_to_study', 'gender'
         ]
     
     def validate(self, data):
@@ -83,7 +84,13 @@ class JobPostCreateSerializer(serializers.ModelSerializer):
             )
         
         return data
-    
+
+    def validate_days_to_study(self, value):
+        # If frontend sends a list: ["monday", "tuesday"]
+        if isinstance(value, list):
+            return ",".join(value)
+        return value
+
     def create(self, validated_data):
         # Set student from request user
         request = self.context.get('request')
@@ -107,7 +114,8 @@ class JobPostListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'student', 'course', 'subject_display',
             'teaching_mode', 'budget_amount', 'budget_type', 'duration_value',
             'duration_unit', 'location', 'status', 'applications_count',
-            'created_at', 'time_ago', 'deadline'
+            'created_at', 'time_ago', 'deadline', 'time_to_study',
+            'days_to_study', 'gender'
         ]
     
     def get_time_ago(self, obj):
@@ -138,7 +146,8 @@ class JobPostDetailSerializer(serializers.ModelSerializer):
             'teaching_mode', 'budget_amount', 'budget_type', 'duration_value',
             'duration_unit', 'additional_notes', 'location', 'status',
             'applications_count', 'selected_teacher', 'created_at', 'updated_at',
-            'deadline', 'is_owner', 'can_apply', 'user_application'
+            'deadline', 'is_owner', 'can_apply', 'user_application', 'time_to_study',
+            'days_to_study', 'gender'
         ]
     
     def get_is_owner(self, obj):
