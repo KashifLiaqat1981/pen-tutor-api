@@ -33,11 +33,13 @@ ALLOWED_HOSTS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'https://pen-tutor-three.vercel.app',
+    'https://pen-tutor.vercel.app',
+    'www.pentutor.com'
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://pen-tutor-three.vercel.app",
+    "https://pen-tutor.vercel.app",
+    "www.pentutor.com",
     "https://*.vercel.app",    # optional, for preview deployments
 ]
 
@@ -272,6 +274,7 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
 
 
