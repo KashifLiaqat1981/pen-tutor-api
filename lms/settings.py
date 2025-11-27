@@ -29,17 +29,23 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "pen-tutor-api.onrender.com",
+    "https://pen-tutor-api.onrender.com",
     "www.pen-tutor-api.onrender.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://pen-tutor.vercel.app',
-    'www.pentutor.com'
+    'pen-tutor.vercel.app',
+    'https://pentutor.com',
+    'www.pentutor.com',
+    'https://www.pentutor.com',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://pen-tutor.vercel.app",
+    "https://pentutor.com",
     "www.pentutor.com",
+    'https://www.pentutor.com',
     "https://*.vercel.app",    # optional, for preview deployments
 ]
 
@@ -274,6 +280,7 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
 
 
