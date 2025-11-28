@@ -8,6 +8,10 @@ from .models import User, StudentProfile, TeacherProfile, StudentQuery
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    age = serializers.IntegerField(required=False)
+    city = serializers.CharField(required=False, allow_blank=True)
+    country = serializers.CharField(required=False, allow_blank=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = User
@@ -243,4 +247,5 @@ class StudentQueryListSerializer(serializers.ModelSerializer):
             'current_class', 'subjects', 'special_requirements',
             'is_registered', 'is_processed', 'admin_notes',
             'linked_user_email', 'created_at', 'updated_at'
+
         ]
