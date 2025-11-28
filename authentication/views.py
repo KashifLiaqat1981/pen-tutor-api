@@ -29,7 +29,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://pen-tutor-three.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://pentutor.com")
 
 class UserRegistrationView(APIView):
     permission_classes = [AllowAny]
@@ -672,5 +672,6 @@ class AdminRoleUpdateView(APIView):
                 'success': False,
                 'message': 'User not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
 
 
