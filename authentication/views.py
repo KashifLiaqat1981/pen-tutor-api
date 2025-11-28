@@ -43,6 +43,11 @@ class UserRegistrationView(APIView):
     
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
+        print("\n=== REGISTRATION DEBUG ===")
+        print("Raw request.data:", request.data)  # This shows EXACTLY what frontend sent
+        print("Content-Type:", request.headers.get('Content-Type'))
+        print("User-Agent:", request.headers.get('User-Agent'))
+        print("========================\n")
         if serializer.is_valid():
             user = serializer.save()
             
@@ -64,11 +69,17 @@ class UserRegistrationView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
         
-        return Response({
-            'success': False,
-            'message': 'Registration failed',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # THIS IS THE KEY: Print exact validation errors
+            print("\nVALIDATION FAILED!")
+            print("Serializer errors:", serializer.errors)
+            print("Invalid data received:", serializer.data)
+            print("================================\n")
+            return Response({
+                'success': False,
+                'message': 'Registration failed',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
     
     def send_verification_email(self, user, token):
         subject = 'Verify Your Email - LMS'
@@ -661,4 +672,5 @@ class AdminRoleUpdateView(APIView):
                 'success': False,
                 'message': 'User not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
 
