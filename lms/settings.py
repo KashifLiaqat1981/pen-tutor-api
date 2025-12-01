@@ -28,16 +28,21 @@ SECRET_KEY = 'django-insecure--p-1e30a1&iwvhvvxm-i9!s910bqc*x#o!fia)gc%j5_i+l#w*
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    "https://www.pen-tutor-api.onrender.com",
     "https://pen-tutor-api.onrender.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://pen-tutor.vercel.app',
+    'https://www.pen-tutor.vercel.app',
+    'https://www.pentutor.com',
     'https://pentutor.com',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://pen-tutor.vercel.app",
+    'https://www.pen-tutor.vercel.app',
+    'https://www.pentutor.com',
     "https://pentutor.com",
 ]
 
@@ -272,6 +277,7 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
 
 
