@@ -197,7 +197,7 @@ class UserProfileView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class UserLogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     @swagger_auto_schema(
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -672,6 +672,7 @@ class AdminRoleUpdateView(APIView):
                 'success': False,
                 'message': 'User not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
 
 
 
