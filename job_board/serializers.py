@@ -311,7 +311,8 @@ class MyJobPostSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'course', 'subject_display', 'status',
             'applications_count', 'selected_teacher', 'created_at',
-            'budget_amount', 'budget_type'
+            'budget_amount', 'budget_type', 'days_to_study',
+            'time_to_study', 'teaching_mode', 'location',
         ]
 
 
