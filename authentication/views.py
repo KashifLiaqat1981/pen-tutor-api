@@ -10,6 +10,7 @@ from django.utils.crypto import get_random_string
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from .models import User,StudentProfile,TeacherProfile,StudentQuery
+from activity.utils import log_activity
 from .serializers import (
     UserRegistrationSerializer, 
     UserLoginSerializer, 
@@ -29,7 +30,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://pentutor.com")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 class UserRegistrationView(APIView):
     permission_classes = [AllowAny]
@@ -55,6 +56,13 @@ class UserRegistrationView(APIView):
             verification_token = get_random_string(50)
             user.verification_token = verification_token
             user.save()
+            log_activity(
+                user=user,
+                action="User registered",
+                module="Authentication",
+                request=request,
+                extra_info={"email": user.email}
+            )
             
             # Send verification email
             self.send_verification_email(user, verification_token)
@@ -149,7 +157,14 @@ class UserLoginView(APIView):
             
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
-            
+            log_activity(
+                user=user,
+                action="User logged in",
+                module="Authentication",
+                request=request,
+                extra_info={"user_id": str(user.id)}
+            )
+
             return Response({
                 'success': True,
                 'message': 'Login successful',
@@ -184,6 +199,13 @@ class UserProfileView(APIView):
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            log_activity(
+                user=request.user,
+                action="Profile updated",
+                module="User",
+                request=request,
+                extra_info={"updated_fields": list(request.data.keys())}
+            )
             return Response({
                 'success': True,
                 'message': 'Profile updated successfully',
@@ -266,6 +288,13 @@ class ResendVerificationEmailView(APIView):
             
             # Send verification email
             self.send_verification_email(user, verification_token)
+            log_activity(
+                user=user,
+                action="Resent verification email",
+                module="User Registration",
+                request=request,
+                extra_info={"email": user.email, "token": verification_token}
+            )
             
             return Response({
                 'success': True,
@@ -355,6 +384,13 @@ class ProfileUpdateView(APIView):
         serializer = serializer_class(profile, data=request.data,partial=True)
         if serializer.is_valid():
             serializer.save()
+            log_activity(
+                user=request.user,
+                action="Updated profile",
+                module="Profile",
+                request=request,
+                extra_info={"updated_fields": list(serializer.validated_data.keys())}
+            )
             return Response({
                 'success': True,
                 'message': 'Profile updated successfully',
@@ -384,6 +420,13 @@ class ProfileUpdateView(APIView):
         serializer = serializer_class(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            log_activity(
+                user=request.user,
+                action="Updated profile",
+                module="Profile",
+                request=request,
+                extra_info={"updated_fields": list(serializer.validated_data.keys())}
+            )
             return Response({
                 'success': True,
                 'message': 'Profile updated successfully',
@@ -409,50 +452,50 @@ class CreateStudentProfileView(APIView):
         400: 'Bad Request'
     }
     )
-
     def post(self, request):
-            
-        with transaction.atomic():
+        if StudentProfile.objects.filter(user=request.user).exists():
+            return Response(
+                {"success": False, "message": "Profile already exists"},
+                status=400
+            )
 
-            # Check if student query exists for this email
-            existing_query = StudentQuery.objects.filter(
-                    email=request.user.email,
-                    is_registered=False
-                ).first()
-            
-            # Create or get student profile
-            student_profile, created = StudentProfile.objects.get_or_create(
-            user=request.user,
-            defaults={"email": request.user.email})
-        
-        
-            # If existing query found, pre-populate some fields
-            if existing_query and created:
-                # Map query data to profile fields
-                profile_data = request.data.copy()
-                profile_data.update({
-                    'full_name': existing_query.name,
-                    'city': existing_query.area,
-                    'phone': existing_query.contact_no,
-                })
-                
-                # Update query status
-                existing_query.is_registered = True
-                existing_query.linked_user = request.user
-                existing_query.save()
-                
-            else:
-                profile_data = request.data
-            
-            
-            serializer = StudentProfileSerializer(student_profile,data=request.data,partial=True)
-            if serializer.is_valid():
-                request.user.role = 'student'
-                request.user.save(update_fields=["role"])
-                serializer.save(user=request.user, email=request.user.email)
-                return Response({"success": True, "message": "Student profile created", "data": serializer.data}, status=201)
-        
-        return Response({"success": False, "errors": serializer.errors}, status=400)
+        serializer = StudentProfileSerializer(data=request.data)
+
+        # ❗ FULL validation (required fields enforced)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "message": "Please fill in the required fields", "errors": serializer.errors},
+                status=400
+            )
+
+        with transaction.atomic():
+            # Create profile ONLY after validation
+            student_profile = serializer.save(
+                user=request.user,
+                email=request.user.email
+            )
+
+            # Update user role
+            request.user.role = 'student'
+            request.user.save(update_fields=["role"])
+
+            # Mark StudentQuery as registered (optional)
+            StudentQuery.objects.filter(
+                email=request.user.email,
+                is_registered=False
+            ).update(
+                is_registered=True,
+                linked_user=request.user
+            )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Student profile created successfully",
+                "data": StudentProfileSerializer(student_profile).data
+            },
+            status=201
+        )
 
 
 class CreateTeacherProfileView(APIView):
@@ -465,31 +508,65 @@ class CreateTeacherProfileView(APIView):
     }
     )
     def post(self, request):
-        if hasattr(request.user, 'teacher_profile'):
-            return Response({"success": False, "message": "Teacher profile already exists"}, status=400)
-        
-         # 1️⃣ Parse the JSON string from `data` key in form-data
+        # Block if user already has a profile of any type
+        if hasattr(request.user, "teacher_profile") or hasattr(request.user, "student_profile"):
+            return Response({
+                "success": False,
+                "message": "A profile already exists for this user. Cannot create another."
+            }, status=400)
+
+        # Block if any profile exists with the same email
+        if TeacherProfile.objects.filter(email=request.user.email).exists() or \
+                StudentProfile.objects.filter(email=request.user.email).exists():
+            return Response({
+                "success": False,
+                "message": "A profile with this email already exists. Cannot create another."
+            }, status=400)
+
+        # Parse JSON and files
         try:
-            data_json = json.loads(request.data.get('data', '{}'))
+            data_json = json.loads(request.data.get("data", "{}"))
         except json.JSONDecodeError:
             return Response({"success": False, "message": "Invalid JSON in 'data' field"}, status=400)
-        
-        # 2️⃣ Merge files into data dictionary
-        data_json['resume'] = request.FILES.get('resume')
-        data_json['degree_certificates'] = request.FILES.get('degree_certificates')
-        data_json['id_proof'] = request.FILES.get('id_proof')
 
-        # 3️⃣ Inject user and email
-        data_json['email'] = request.user.email
-        data_json['status'] = "pending"
+        data_json.update({
+            "resume": request.FILES.get("resume"),
+            "degree_certificates": request.FILES.get("degree_certificates"),
+            "id_proof": request.FILES.get("id_proof"),
+            "status": "pending",
+            "email": request.user.email,
+            "full_name": f"{request.user.first_name} {request.user.last_name}".strip()
+        })
 
+        with transaction.atomic():
+            serializer = TeacherProfileSerializer(data=data_json)
+            if serializer.is_valid():
+                profile = serializer.save(
+                    user=request.user,
+                    status="pending",
+                    email=request.user.email,
+                    full_name=f"{request.user.first_name} {request.user.last_name}".strip()
+                )
 
-        serializer = TeacherProfileSerializer(data=data_json)
-        if serializer.is_valid():
-            serializer.save(user=request.user, email=request.user.email, status="pending")  # pending approval
-            return Response({"success": True, "message": "Teacher profile submitted for approval", "data": serializer.data}, status=201)
-        
-        return Response({"success": False, "errors": serializer.errors}, status=400)
+                # Update role explicitly
+                request.user.role = "teacher"
+                request.user.save(update_fields=["role"])
+
+                log_activity(
+                    user=request.user,
+                    action="Submitted teacher profile for approval",
+                    module="TeacherProfile",
+                    request=request,
+                    extra_info={"profile_id": profile.id, "status": "pending"}
+                )
+
+                return Response({
+                    "success": True,
+                    "message": "Teacher profile submitted for approval",
+                    "data": serializer.data
+                }, status=201)
+
+            return Response({"success": False, "errors": serializer.errors}, status=400)
 
 # ==========================
 # Student query form
@@ -511,19 +588,48 @@ class StudentQueryView(APIView):
     def post(self, request):
         serializer = StudentQuerySerializer(data=request.data)
         if serializer.is_valid():
-            # Check if query already exists for this email
-            email = serializer.validated_data['email']
-            existing_query = StudentQuery.objects.filter(email=email).first()
-            
-            if existing_query:
+            data = serializer.validated_data
+
+            # Normalize subjects (order-independent comparison)
+            normalized_subjects = sorted(set(data.get('subjects', [])))
+            data['subjects'] = normalized_subjects
+
+            # Check for exact duplicate query
+            candidates = StudentQuery.objects.filter(
+                email=data['email'],
+                name=data['name'],
+                contact_no=data['contact_no'],
+                city=data['city'],
+                country=data['country'],
+                curriculum=data['curriculum'],
+                level=data.get('level'),
+                current_class=data['current_class']
+            )
+            duplicate_query = None
+            for query in candidates:
+                if sorted(query.subjects) == normalized_subjects:
+                    duplicate_query = query
+                    break
+
+            if duplicate_query:
                 return Response({
                     'success': False,
-                    'message': 'A query with this email already exists. Please contact admin for updates.',
-                    'data': {'query_id': existing_query.id}
+                    'message': 'An identical query already exists.',
+                    'data': {'query_id': duplicate_query.id}
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Save the query
-            query = serializer.save()
+
+            # Check if a User exists with this email
+            user = User.objects.filter(email=data['email']).first()
+            # Save query, link to user if exists
+            query = serializer.save(subjects=normalized_subjects, linked_user=user, is_registered=bool(user))
+
+            log_activity(
+                user=None,  # anonymous, user not authenticated
+                action="Submitted student query",
+                module="StudentQuery",
+                request=request,
+                extra_info={"query_id": query.id, "email": query.email, "name": query.name}
+            )
             
             # Create admin notification
             # self.create_admin_notification(query)
@@ -563,7 +669,7 @@ class StudentQueryView(APIView):
         We have received your query with the following details:
         - Name: {query.name}
         - Email: {query.email}
-        - Area: {query.area}
+        - Curriculum: {query.curriculum}
         - Class: {query.current_class}
         - Subjects: {query.subjects}
         
@@ -641,12 +747,20 @@ class AdminRoleUpdateView(APIView):
             user = User.objects.get(id=user_id)
             old_role = user.role
             if old_role == 'teacher':
-                return Response({'success': False, 'message': 'Cannot change role of a teacher. alredy role is teacher'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'success': False, 'message': 'Cannot change role of a teacher. already role is teacher'}, status=status.HTTP_404_NOT_FOUND)
                                 
             serializer = RoleUpdateSerializer(user, data=request.data, partial=True)
             
             if serializer.is_valid():
                 serializer.save()
+                log_activity(
+                    user=request.user,
+                    action=f"Updated role of user {user.id} from {old_role} to {serializer.validated_data.get('role')}",
+                    module="Admin",
+                    request=request,
+                    extra_info={"user_id": str(user.id), "old_role": old_role,
+                                "new_role": serializer.validated_data.get('role')}
+                )
 
                 # If role change to teacher then create Teacher object
                 new_role = serializer.validated_data.get('role')
@@ -672,7 +786,3 @@ class AdminRoleUpdateView(APIView):
                 'success': False,
                 'message': 'User not found'
             }, status=status.HTTP_404_NOT_FOUND)
-
-
-
-
