@@ -14,6 +14,7 @@ from authentication.serializers import UserSerializer,StudentQuerySerializer,Stu
 from courses.models import Course, Teacher, Enrollment
 from courses.serializers import CourseListSerializer
 from payments.models import Payment
+from activity.utils import log_activity
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import uuid
@@ -215,6 +216,18 @@ def admin_review_profile(request):
         user_obj.role = profile_type
         user_obj.save()
 
+    log_activity(
+        user=request.user,
+        action=f"{action.title()} {profile_type} profile",
+        module="Profiles",
+        request=request,
+        extra_info={
+            "profile_type": profile_type,
+            "profile_user_id": str(user_obj.id),
+            "new_status": profile.status
+        }
+    )
+
     # Send notification to the user
     Notification.objects.create(
         recipient=profile.user,
@@ -316,7 +329,17 @@ def admin_update_user_role(request, user_id):
         
         user.role = new_role
         user.save()
-        
+        log_activity(
+            user=request.user,
+            action=f"Updated user role to {new_role}",
+            module="User Management",
+            request=request,
+            extra_info={
+                "target_user_id": str(user.id),
+                "new_role": new_role
+            }
+        )
+
         return Response({
             'success': True,
             'message': f'User role updated to {new_role}',
@@ -502,7 +525,18 @@ def admin_verify_payment(request, payment_id):
         
         payment.is_successful = is_successful
         payment.save()
-        
+
+        log_activity(
+            user=request.user,
+            action="Updated payment verification status",
+            module="Admin - Payments",
+            request=request,
+            extra_info={
+                "payment_id": payment.id,
+                "is_successful": payment.is_successful
+            }
+        )
+
         return Response({
             'success': True,
             'message': f'Payment {"verified" if is_successful else "marked as failed"}',
@@ -601,7 +635,18 @@ def admin_delete_user(request, user_id):
         
         username = user.username
         user.delete()
-        
+
+        log_activity(
+            user=request.user,
+            action="Deleted a user",
+            module="Admin - Users",
+            request=request,
+            extra_info={
+                "deleted_user_id": str(user_id),
+                "deleted_username": username
+            }
+        )
+
         return Response({
             'success': True,
             'message': f'User {username} deleted successfully'
@@ -682,12 +727,6 @@ def admin_user_detail(request, user_id):
         }, status=status.HTTP_404_NOT_FOUND)
     
 
-
-
-
-
-
-
 # support_feedback/views.py
 from support_feedback.models import SupportTicket, CourseFeedback, TeacherFeedback
 from support_feedback.serializers import (
@@ -724,7 +763,19 @@ class AdminSupportTicketDetailView(generics.RetrieveUpdateAPIView):
         responses={200: SupportTicketSerializer()}
     )
     def put(self, request, *args, **kwargs):
-        return super().put(request, *args, **kwargs)
+        response = super().put(request, *args, **kwargs)
+
+        log_activity(
+            user=request.user,
+            action="Updated support ticket",
+            module="Admin - Support Tickets",
+            request=request,
+            extra_info={
+                "ticket_id": kwargs.get("pk"),
+                "updated_fields": list(request.data.keys())
+            }
+        )
+        return response
 
 
 @swagger_auto_schema(
@@ -756,6 +807,16 @@ def admin_reply_ticket(request, ticket_id):
     
     if serializer.is_valid():
         serializer.save(ticket=ticket, user=request.user, is_admin_reply=True)
+        log_activity(
+            user=request.user,
+            action="Replied to support ticket",
+            module="Admin - Support Tickets",
+            request=request,
+            extra_info={
+                "ticket_id": str(ticket.id),
+                "reply_excerpt": request.data.get("message", "")[:50]
+            }
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -823,7 +884,17 @@ class AdminStudentQueriesView(APIView):
             query.is_processed = request.data.get('is_processed', query.is_processed)
             query.admin_notes = request.data.get('admin_notes', query.admin_notes)
             query.save()
-            
+            log_activity(
+                user=request.user,
+                action="Updated student query",
+                module="Admin - Student Queries",
+                request=request,
+                extra_info={
+                    "query_id": query_id,
+                    "updated_fields": list(request.data.keys())
+                }
+            )
+
             serializer = StudentQueryListSerializer(query)
             return Response({
                 'success': True,
