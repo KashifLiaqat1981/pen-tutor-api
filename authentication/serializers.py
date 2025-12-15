@@ -55,12 +55,16 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     email = serializers.EmailField(read_only=True)
     full_name = serializers.CharField(required=True)
-    gender = serializers.CharField(required=True)
+    tutor_gender = serializers.CharField(required=True)
     phone = serializers.CharField(required=True)
     city = serializers.CharField(required=True)
     country = serializers.CharField(required=True)
-    area = serializers.CharField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_null=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
+
+    # location
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
 
     # Academic Info/Preferences
     curriculum = serializers.CharField(required=False, allow_null=True)
@@ -69,6 +73,27 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     preferred_learning_time = serializers.JSONField(required=False, allow_null=True)
     language_preferences = serializers.JSONField(required=False, allow_null=True)
     member_since = serializers.DateTimeField(source='user.date_joined', read_only=True)
+
+    def validate_latitude(self, value):
+        if not -90 <= value <= 90:
+            raise serializers.ValidationError("Latitude must be between -90 and 90.")
+        return value
+
+    def validate_longitude(self, value):
+        if not -180 <= value <= 180:
+            raise serializers.ValidationError("Longitude must be between -180 and 180.")
+        return value
+
+    def create(self, validated_data):
+        latitude = validated_data.pop("latitude", None)
+        longitude = validated_data.pop("longitude", None)
+
+        if latitude is not None and longitude is not None:
+            validated_data["location"] = (
+                f"https://www.google.com/maps?q={latitude},{longitude}"
+            )
+
+        return super().create(validated_data)
 
     class Meta:
         model = StudentProfile
@@ -186,14 +211,38 @@ class StudentQuerySerializer(serializers.ModelSerializer):
     """
     Serializer for Student Query Form
     """
+    # location
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
+
     class Meta:
         model = StudentQuery
         fields = [
-            'id', 'name', 'email', 'contact_no', 'area', 'tutor_gender', 'curriculum', 'level',
-            'current_class', 'subjects', 'special_requirements', 'city', 'country',
+            'id', 'name', 'email', 'contact_no', 'area', 'tutor_gender', 'curriculum', 'learning_mode',
+            'current_class', 'subjects', 'special_requirements', 'city', 'country', 'location',
             'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+    def validate_latitude(self, value):
+        if not -90 <= value <= 90:
+            raise serializers.ValidationError("Latitude must be between -90 and 90.")
+        return value
+
+    def validate_longitude(self, value):
+        if not -180 <= value <= 180:
+            raise serializers.ValidationError("Longitude must be between -180 and 180.")
+        return value
+
+    def create(self, validated_data):
+        latitude = validated_data.pop("latitude", None)
+        longitude = validated_data.pop("longitude", None)
+
+        if latitude is not None and longitude is not None:
+            validated_data["location"] = (
+                f"https://www.google.com/maps?q={latitude},{longitude}"
+            )
+        return super().create(validated_data)
 
     def validate_email(self, value):
         """Validate email format"""

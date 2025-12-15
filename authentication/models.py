@@ -44,13 +44,15 @@ class StudentProfile(models.Model):
     phone = models.CharField(max_length=15, blank=True, null=True)
     city = models.CharField(max_length=50, blank=True)
     country = models.CharField(max_length=50, blank=True)
-    area = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=100, blank=True, null=True)
+    location = models.URLField(max_length=500, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
     profile_picture = models.ImageField(upload_to='student_profiles/', null=True, blank=True)
 
     # Academic Info/Preferences
+    learning_mode = models.CharField(max_length=50, help_text="Home/Online",
+                                     choices=[('home', 'Home'), ('online', 'Online')], blank=True)
     curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel", null=True)
-    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True)
     current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1", null=True)
     subjects = models.JSONField(default=list, help_text="Subjects of interest", blank=True, null=True)
     special_requirements = models.TextField(blank=True, null=True, help_text="Any special requirements or requests")
@@ -101,7 +103,7 @@ class StudentProfile(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['curriculum', 'level']),
+            models.Index(fields=['curriculum']),
             models.Index(fields=['tutor_gender']),
         ]
 
@@ -121,7 +123,9 @@ class StudentProfile(models.Model):
         ('self_employed', 'Self Employed'),
         ('unemployed', 'Looking for Opportunities'),
         ('other', 'Other')
+
     ] # not used
+    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True) # not needed
     field_of_study = models.CharField(max_length=200, blank=True) # not used
     education_level = models.CharField(max_length=20, choices=EDUCATION_LEVELS, blank=True) # not used
     notification_preferences = models.JSONField(default=dict, blank=True) # not needed
@@ -238,7 +242,6 @@ class TeacherProfile(models.Model):
                         break
                 except IntegrityError:
                     continue
-
         super().save(*args, **kwargs)
 
     class Meta:
@@ -275,32 +278,36 @@ class StudentQuery(models.Model):
     email = models.EmailField()
     contact_no = models.CharField(max_length=15)
     tutor_gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('any', 'Any')],
-                              blank=True)
+                                    blank=True)
     city = models.CharField(max_length=50)
     country = models.CharField(max_length=50)
     area = models.CharField(max_length=100, blank=True, null=True)
+    location = models.URLField(max_length=500, blank=True, null=True)
 
     # Academic Info
     curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel")
-    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True)
+    learning_mode = models.CharField(max_length=50, help_text="Home/Online", choices=[('home', 'Home'), ('online', 'Online')],
+                                     blank=True)
+
+
     current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1")
     subjects = models.JSONField(default=list, help_text="Subjects of interest", blank=True)
     special_requirements = models.TextField(blank=True, null=True, help_text="Any special requirements or requests")
-    
+
     # Status
     is_registered = models.BooleanField(default=False, help_text="Has this person registered as a student?")
     is_processed = models.BooleanField(default=False, help_text="Has admin processed this query?")
     admin_notes = models.TextField(blank=True, null=True, help_text="Admin notes for this query")
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     # Link to user if they register later
     linked_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.SET_NULL, 
-        null=True, 
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         help_text="User account if they registered later"
     )
@@ -318,4 +325,6 @@ class StudentQuery(models.Model):
             models.Index(fields=['created_at']),
         ]
 
+
+    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True) # not needed
 
