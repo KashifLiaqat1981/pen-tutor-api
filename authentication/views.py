@@ -602,7 +602,6 @@ class StudentQueryView(APIView):
                 city=data['city'],
                 country=data['country'],
                 curriculum=data['curriculum'],
-                level=data.get('level'),
                 current_class=data['current_class']
             )
             duplicate_query = None
@@ -729,7 +728,7 @@ class AdminRoleUpdateView(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
     manual_parameters=[
-        openapi.Parameter('user_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+        openapi.Parameter('user_id', openapi.IN_PATH, type=openapi.TYPE_STRING)
     ],
     request_body=RoleUpdateSerializer,
     responses={200: UserSerializer, 400: 'Validation Error', 404: 'User not found'}
@@ -764,9 +763,9 @@ class AdminRoleUpdateView(APIView):
 
                 # If role change to teacher then create Teacher object
                 new_role = serializer.validated_data.get('role')
-                if new_role == 'teacher' and old_role != 'teacher':
-                    from courses.models import Teacher
-                    Teacher.objects.get_or_create(user=user) 
+                # if new_role == 'teacher' and old_role != 'teacher':
+                #     from courses.models import Teacher
+                #     Teacher.objects.get_or_create(user=user)
 
                 
                 return Response({
