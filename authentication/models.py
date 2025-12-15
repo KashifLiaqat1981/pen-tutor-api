@@ -3,7 +3,6 @@
 from django.db import models, transaction, IntegrityError
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
-from simple_history.models import HistoricalRecords
 import uuid
 from django.conf import settings
 
@@ -27,8 +26,6 @@ class User(AbstractUser):
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
-
-    history = HistoricalRecords(excluded_fields=['password'])
     
     def __str__(self):
         return self.email
@@ -81,8 +78,6 @@ class StudentProfile(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, null=True,blank=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    history = HistoricalRecords()
 
     def __str__(self):
         return f"Student: {self.user.email}"
@@ -225,8 +220,6 @@ class TeacherProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
-
     def __str__(self):
         return f"Teacher: {self.user.email}"
 
@@ -312,8 +305,6 @@ class StudentQuery(models.Model):
         help_text="User account if they registered later"
     )
 
-    history = HistoricalRecords()
-
     def __str__(self):
         return f"Query by {self.name} - {self.email}"
 
@@ -326,4 +317,5 @@ class StudentQuery(models.Model):
             models.Index(fields=['is_processed']),
             models.Index(fields=['created_at']),
         ]
+
 
