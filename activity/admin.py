@@ -5,7 +5,7 @@ from .models import ActivityLog
 
 @admin.register(ActivityLog)
 class ActivityLogAdmin(admin.ModelAdmin):
-    list_display = ('timestamp', 'user_email', 'user_role', 'action', 'module', 'page_url')
+    list_display = ('timestamp', 'email', 'user_role', 'action', 'module', 'page_url')
     list_filter = ('module', 'user__role', 'timestamp')
     search_fields = ('user__username', 'user__email', 'action', 'module')
     readonly_fields = ('timestamp', 'user', 'action', 'module', 'page_url', 'user_agent', 'extra_info')
