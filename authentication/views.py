@@ -597,8 +597,8 @@ class StudentQueryView(APIView):
             # Check for exact duplicate query
             candidates = StudentQuery.objects.filter(
                 email=data['email'],
-                name=data['name'],
-                contact_no=data['contact_no'],
+                full_name=data['full_name'],
+                phone=data['phone'],
                 city=data['city'],
                 country=data['country'],
                 curriculum=data['curriculum'],
@@ -624,10 +624,11 @@ class StudentQueryView(APIView):
 
             log_activity(
                 user=None,  # anonymous, user not authenticated
+                email=query.email,
                 action="Submitted student query",
                 module="StudentQuery",
                 request=request,
-                extra_info={"query_id": query.id, "email": query.email, "name": query.name}
+                extra_info={"query_id": query.id, "name": query.full_name}
             )
             
             # Create admin notification
@@ -661,12 +662,12 @@ class StudentQueryView(APIView):
         """Send confirmation email to student"""
         subject = 'Query Received - LMS Platform'
         message = f'''
-        Hi {query.name},
+        Hi {query.full_name},
         
         Thank you for your interest in our LMS platform!
         
         We have received your query with the following details:
-        - Name: {query.name}
+        - Name: {query.full_name}
         - Email: {query.email}
         - Curriculum: {query.curriculum}
         - Class: {query.current_class}

@@ -9,6 +9,7 @@ class ActivityLog(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
+    email = models.EmailField(null=True, blank=True)
     action = models.CharField(max_length=255)  # e.g., "Created Assignment"
     module = models.CharField(max_length=100)  # e.g., "Assignments"
     page_url = models.URLField(max_length=500, null=True, blank=True)
