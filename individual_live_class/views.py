@@ -321,14 +321,14 @@ class RescheduleRequestView(generics.CreateAPIView):
         serializer.save(requested_by=self.request.user)
         
         # Notify admin
-        reschedule = serializer.instance
-        Notification.objects.create(
-            recipient_id=1,  # Admin
-            sender=self.request.user,
-            notification_type='general',
-            title='Class Reschedule Request',
-            message=f'Reschedule requested for {reschedule.session.schedule.subject} from {reschedule.original_datetime} to {reschedule.new_datetime}'
-        )
+        # reschedule = serializer.instance
+        # Notification.objects.create(
+        #     recipient_id=1,  # Admin
+        #     sender=self.request.user,
+        #     notification_type='general',
+        #     title='Class Reschedule Request',
+        #     message=f'Reschedule requested for {reschedule.session.schedule.subject} from {reschedule.original_datetime} to {reschedule.new_datetime}'
+        # )
 
 
 class PendingReschedulesView(generics.ListAPIView):
