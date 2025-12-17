@@ -215,7 +215,7 @@ def send_admin_notification(sender,instance, role_type):
     # Message build karo
     if isinstance(instance, StudentQuery):
         title = f"New Student Query"
-        message = f"A new student query has been submitted by {instance.name} ({instance.email}) from {instance.area}. Subject interests: {instance.subjects}"
+        message = f"A new student query has been submitted by {instance.full_name} ({instance.email}) from {instance.address}. Subject interests: {instance.subjects}"
     else:
         title = f"New {role_type.replace('_', ' ').title()}"
         message = f"{sender_user.username if sender_user else 'Unknown'} has requested to become a {role_type.split('_')[0]}."

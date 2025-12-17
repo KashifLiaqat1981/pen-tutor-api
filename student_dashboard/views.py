@@ -63,9 +63,10 @@ def student_dashboard(request):
         'success': True,
         'data': {
             'profile_picture':student_profile.profile_picture.url if student_profile.profile_picture else None,
-            'student_name': student.username,
+            'student_name': student_profile.full_name,
             'student_email': student.email,
             'member_since': member_since,
+            'student_id': student_profile.student_id,
             'statistics': {
                 'total_enrollments': total_enrollments,
                 'completed_courses': completed_courses,

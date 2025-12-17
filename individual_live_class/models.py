@@ -103,16 +103,16 @@ class LiveClassSchedule(models.Model):
             try:
 
                 admin_user = User.objects.filter(role__in ='admin').first()
-                if admin_user:
-                # Create notification for admin
-                    Notification.objects.create(
-                        recipient_id=admin_user,  # Assuming admin user ID is 1
-                        notification_type='general',
-                        title='New Demo Class Scheduled',
-                        message=f'Demo class for {self.subject} scheduled between {self.teacher.full_name} and {self.student.full_name} on {next_class.strftime("%Y-%m-%d %H:%M")}'
-                    )
-                else:
-                    print("admin not found")
+                # if admin_user:
+                # # Create notification for admin
+                #     Notification.objects.create(
+                #         recipient_id=admin_user,  # Assuming admin user ID is 1
+                #         notification_type='general',
+                #         title='New Demo Class Scheduled',
+                #         message=f'Demo class for {self.subject} scheduled between {self.teacher.full_name} and {self.student.full_name} on {next_class.strftime("%Y-%m-%d %H:%M")}'
+                #     )
+                # else:
+                #     print("admin not found")
             except Exception as e:
                 print(f"Error creating notification: {e}")
             
@@ -280,12 +280,12 @@ class ClassReschedule(models.Model):
         self.session.save()
         
         # Notify admin
-        Notification.objects.create(
-            recipient_id=1,  # Admin
-            notification_type='general',
-            title='Class Rescheduled',
-            message=f'Class rescheduled from {self.original_datetime.strftime("%Y-%m-%d %H:%M")} to {self.new_datetime.strftime("%Y-%m-%d %H:%M")} for {self.session.schedule.subject}'
-        )
+        # Notification.objects.create(
+        #     recipient_id=1,  # Admin
+        #     notification_type='general',
+        #     title='Class Rescheduled',
+        #     message=f'Class rescheduled from {self.original_datetime.strftime("%Y-%m-%d %H:%M")} to {self.new_datetime.strftime("%Y-%m-%d %H:%M")} for {self.session.schedule.subject}'
+        # )
     
     class Meta:
         ordering = ['-created_at']
@@ -330,12 +330,12 @@ class LiveClassPayment(models.Model):
         self.save()
         
         # Notify admin
-        Notification.objects.create(
-            recipient_id=1,  # Admin
-            notification_type='payment_completed',
-            title='Live Class Payment Received',
-            message=f'Payment of {self.amount} received from {self.student.full_name} for {self.schedule.subject} classes'
-        )
+        # Notification.objects.create(
+        #     recipient_id=1,  # Admin
+        #     notification_type='payment_completed',
+        #     title='Live Class Payment Received',
+        #     message=f'Payment of {self.amount} received from {self.student.full_name} for {self.schedule.subject} classes'
+        # )
     
     class Meta:
         ordering = ['-initiated_at']
