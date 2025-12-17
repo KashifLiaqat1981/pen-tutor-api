@@ -55,21 +55,21 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     email = serializers.EmailField(read_only=True)
     full_name = serializers.CharField(required=True)
-    tutor_gender = serializers.CharField(required=True)
     phone = serializers.CharField(required=True)
-    city = serializers.CharField(required=True)
     country = serializers.CharField(required=True)
-    address = serializers.CharField(required=False, allow_null=True)
+    city = serializers.CharField(required=True)
+    curriculum = serializers.CharField(required=True)
+    current_class = serializers.CharField(required=True)
+    tutor_gender = serializers.CharField(required=True)
+    learning_mode = serializers.CharField(required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
 
     # location
+    address = serializers.CharField(required=False, allow_null=True)
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
 
     # Academic Info/Preferences
-    curriculum = serializers.CharField(required=False, allow_null=True)
-    level = serializers.CharField(required=False, allow_null=True)
-    current_class = serializers.CharField(required=False, allow_null=True)
     preferred_learning_time = serializers.JSONField(required=False, allow_null=True)
     language_preferences = serializers.JSONField(required=False, allow_null=True)
     member_since = serializers.DateTimeField(source='user.date_joined', read_only=True)
@@ -105,12 +105,6 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'average_course_rating'
         ]
 
-    notification_preferences = serializers.JSONField(required=False) # not needed
-    skills = serializers.JSONField(required=False) # not needed
-    interests = serializers.JSONField(required=False) # not needed
-    certificates = serializers.JSONField(required=False) # not needed
-    social_links = serializers.JSONField(required=False) # not needed
-
     # def validate_preferred_learning_time(self, value):
     #     if not isinstance(value, list):
     #         raise serializers.ValidationError("Preferred learning time must be a list")
@@ -128,8 +122,8 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(required=True)
     country = serializers.CharField(required=True)
     city = serializers.CharField(required=True)
-    address = serializers.CharField(required=True, allow_null=True)
-    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    address = serializers.CharField(required=True)
+    date_of_birth = serializers.DateField(required=True)
     gender = serializers.CharField(required=True)
     identity_no = serializers.CharField(required=True)
 
@@ -137,14 +131,13 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=True)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=True)
 
-    education = serializers.JSONField(required=False)
-    languages_spoken = serializers.JSONField(required=False)
-    availability_schedule = serializers.JSONField(required=False)
-    preferred_teaching_methods = serializers.JSONField(required=False)
-    social_links = serializers.JSONField(required=False)
-    resume = serializers.FileField(required=False, allow_null=True)
-    degree_certificates = serializers.FileField(required=False, allow_null=True)
-    id_proof = serializers.FileField(required=False, allow_null=True)
+    teaching_mode = serializers.CharField(required=True)
+    subjects = serializers.JSONField(required=True)
+    curriculum = serializers.JSONField(required=True)
+    classes = serializers.JSONField(required=True)
+    years_of_experience = serializers.IntegerField(min_value=0, required=True)
+    hourly_rate = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
+    headline = serializers.CharField(required=True)
 
     def validate_latitude(self, value):
         if not -90 <= value <= 90:
@@ -175,7 +168,8 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             'total_courses', 'total_students',
             'average_rating', 'total_course_hours',
             'total_students_helped', 'response_rate',
-            'average_response_time'
+            'average_response_time','is_profile_complete',
+            'profile_completion_percentage'
         ]
 
     # def validate_education(self, value):

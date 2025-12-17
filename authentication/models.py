@@ -15,7 +15,6 @@ def generate_teacher_id():
 def generate_query_id():
     return f"PTQ-{uuid.uuid4().hex[:8].upper()}"
 
-
 class User(AbstractUser):
     USER_ROLES = [
         ('user','User'),
@@ -50,10 +49,10 @@ class StudentProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='student_profile')
     email = models.EmailField(editable=False)
     full_name = models.CharField(max_length=100)
-    gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], blank=True)
-    phone = models.CharField(max_length=15, blank=True, null=True)
-    city = models.CharField(max_length=50, blank=True)
-    country = models.CharField(max_length=50, blank=True)
+    gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    country = models.CharField(max_length=50, blank=True, null=True)
     address = models.CharField(max_length=100, blank=True, null=True)
     location = models.URLField(max_length=500, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
@@ -61,9 +60,9 @@ class StudentProfile(models.Model):
 
     # Academic Info/Preferences
     learning_mode = models.CharField(max_length=50, help_text="Home/Online or both",
-                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True)
-    curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel", null=True)
-    current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1", null=True)
+                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True, null=True)
+    curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel", blank=True, null=True)
+    current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1", blank=True, null=True)
     subjects = models.JSONField(default=list, help_text="Subjects of interest", blank=True, null=True)
     special_requirements = models.TextField(blank=True, null=True, help_text="Any special requirements or requests")
     preferred_learning_time = models.JSONField(default=list, blank=True, null=True)
@@ -82,18 +81,18 @@ class StudentProfile(models.Model):
     current_courses_count = models.PositiveIntegerField(default=0)
     attendance_percentage = models.FloatField(default=0.0)
     completed_assignments = models.PositiveIntegerField(default=0)
-    certificates = models.JSONField(default=list, blank=True)
+    certificates = models.JSONField(default=list, blank=True, null=True)
     average_course_rating = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
     )
 
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True, null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Student: {self.user.email}"
+        return f"Student_id: {self.student_id} {self.user.email}"
 
     def save(self, *args, **kwargs):
         if self.user and not self.pk:
@@ -107,45 +106,6 @@ class StudentProfile(models.Model):
             models.Index(fields=['curriculum']),
             models.Index(fields=['tutor_gender']),
         ]
-
-
-    # Old Fields...
-    EDUCATION_LEVELS = [
-        ('high_school', 'High School'),
-        ('bachelors', "Bachelor's Degree"),
-        ('masters', "Master's Degree"),
-        ('phd', 'PhD'),
-        ('other', 'Other')
-    ] # not used
-
-    EMPLOYMENT_STATUS = [
-        ('student', 'Full-time Student'),
-        ('employed', 'Employed'),
-        ('self_employed', 'Self Employed'),
-        ('unemployed', 'Looking for Opportunities'),
-        ('other', 'Other')
-
-    ] # not used
-    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True) # not needed
-    field_of_study = models.CharField(max_length=200, blank=True) # not used
-    education_level = models.CharField(max_length=20, choices=EDUCATION_LEVELS, blank=True) # not used
-    notification_preferences = models.JSONField(default=dict, blank=True) # not needed
-    age = models.PositiveIntegerField(null=True, blank=True) # not needed
-    bio = models.TextField(max_length=500, blank=True) # not needed
-    institution = models.CharField(max_length=200, blank=True) # not needed
-    enrollment_number = models.CharField(max_length=100, blank=True, null=True) # not needed
-    graduation_year = models.PositiveIntegerField(null=True, blank=True) # not needed
-    gpa = models.FloatField(blank=True, null=True) # not needed
-    skills = models.JSONField(default=list, blank=True) # not needed
-    interests = models.JSONField(default=list, blank=True) # not needed
-    employment_status = models.CharField(max_length=20, choices=EMPLOYMENT_STATUS, blank=True) # not needed
-    current_job_title = models.CharField(max_length=200, blank=True) # not needed
-    company = models.CharField(max_length=200, blank=True) # not needed
-    career_goals = models.TextField(blank=True) # not needed
-    linkedin_profile = models.URLField(blank=True) # not needed
-    github_profile = models.URLField(blank=True) # not needed
-    portfolio_website = models.URLField(blank=True) # not needed
-    social_links = models.JSONField(default=dict, blank=True) # not needed
 
 
 class TeacherProfile(models.Model):
@@ -162,19 +122,20 @@ class TeacherProfile(models.Model):
     full_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], blank=True)
-    city = models.CharField(max_length=50, blank=True)
-    country = models.CharField(max_length=50, blank=True)
+    gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], blank=True, null=True)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    country = models.CharField(max_length=50, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     location = models.URLField(max_length=500, blank=True, null=True)
-    identity_no = models.CharField(max_length=50, blank=True, help_text="Enter CNIC or Passport number")
+    identity_no = models.CharField(max_length=50, blank=True, help_text="Enter CNIC or Passport number", null=True)
 
     teaching_mode = models.CharField(max_length=50, help_text="Home/Online or both",
-                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True)
+                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True, null=True)
     subjects = models.JSONField(default=list, help_text="Subjects you can teach", blank=True, null=True)
-    curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel you can teach", null=True)
-    classes = models.CharField(max_length=50, help_text="Class/grade i.e. 1, 9, P-1 you can teach", null=True)
+    curriculum = models.JSONField(default=list, help_text="Curriculum i.e. Edexcel you can teach", blank=True, null=True)
+    classes = models.JSONField(default=list, help_text="Class/grade i.e. 1, 9, P-1 you can teach", blank=True, null=True)
     years_of_experience = models.PositiveIntegerField(default=0, blank=True, null=True)
+    currency = models.CharField(max_length=10, blank=True, null=True)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     headline = models.CharField(max_length=200, null=True, blank=True)
 
@@ -225,11 +186,49 @@ class TeacherProfile(models.Model):
     average_response_time = models.DurationField(null=True, blank=True)
 
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def is_profile_complete(self):
+        """
+        Returns True if all required fields for a complete teacher profile are filled.
+        Adjust the list below based on what YOU consider "complete".
+        """
+        required_fields = [
+            'full_name', 'phone', 'date_of_birth', 'gender', 'country', 'city', 'address', 'identity_no',
+            'teaching_mode', 'subjects', 'curriculum', 'classes', 'years_of_experience', 'hourly_rate',
+            'headline', 'profile_picture', 'resume', 'degree_certificates', 'id_proof', 'location'
+        ]
+
+        for field_name in required_fields:
+            value = getattr(self, field_name)
+            if value in (None, '', [], {}):  # handles None, empty string, empty list/dict
+                return False
+
+        return True
+
+    @property
+    def profile_completion_percentage(self):
+        """
+        Bonus: Returns a percentage (0-100) of profile completeness.
+        Great for progress bars in frontend!
+        """
+        if not hasattr(self, '_completion_fields'):
+            self._completion_fields = [
+                'full_name', 'phone', 'date_of_birth', 'gender', 'country', 'city',
+                'address', 'identity_no', 'teaching_mode', 'subjects', 'curriculum',
+                'classes', 'years_of_experience', 'hourly_rate', 'headline',
+                'profile_picture', 'resume', 'degree_certificates', 'id_proof'
+            ]
+
+        total = len(self._completion_fields)
+        filled = sum(1 for field in self._completion_fields if getattr(self, field) not in (None, '', [], {}))
+
+        return round((filled / total) * 100) if total > 0 else 0
+
     def __str__(self):
-        return f"Teacher: {self.user.email}"
+        return f"Teacher_id: {self.teacher_id} {self.user.email}"
 
     def save(self, *args, **kwargs):
         if self.user and not self.pk:
@@ -245,29 +244,6 @@ class TeacherProfile(models.Model):
             models.Index(fields=['status']),
         ]
 
-    # old fields
-    EXPERTISE_LEVELS = [
-        ('beginner', 'Beginner'),
-        ('intermediate', 'Intermediate'),
-        ('expert', 'Expert'),
-        ('master', 'Master')
-    ]
-    EMPLOYMENT_TYPE = [
-        ('full_time', 'Full Time'),
-        ('part_time', 'Part Time'),
-        ('contract', 'Contract'),
-        ('freelance', 'Freelance')
-    ]
-    expertise_level = models.CharField(max_length=20, choices=EXPERTISE_LEVELS,default='expert', blank=True, null=True) # not needed
-    age = models.PositiveIntegerField(null=True, blank=True) # not needed
-    course_categories = models.JSONField(default=list, blank=True, null=True) # not needed
-    bio = models.TextField(blank=True, null=True) # not needed
-    expertise_areas = models.JSONField(default=list, blank=True, null=True) # not needed
-    notification_preferences = models.JSONField(default=dict, blank=True, null=True) # not needed
-    linkedin_profile = models.URLField(blank=True, null=True) # not needed
-    github_profile = models.URLField(blank=True, null=True) # not needed
-    personal_website = models.URLField(blank=True, null=True) # not needed
-
 
 class StudentQuery(models.Model):
     """
@@ -276,22 +252,21 @@ class StudentQuery(models.Model):
     # Basic Info
     full_name = models.CharField(max_length=100)
     email = models.EmailField()
-    phone = models.CharField(max_length=15)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     tutor_gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('any', 'Any')],
-                                    blank=True)
-    city = models.CharField(max_length=50)
-    country = models.CharField(max_length=50)
+                                    blank=True, null=True)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    country = models.CharField(max_length=50, blank=True, null=True)
     address = models.CharField(max_length=100, blank=True, null=True)
     location = models.URLField(max_length=500, blank=True, null=True)
 
     # Academic Info
-    curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel")
+    curriculum = models.CharField(max_length=50, help_text="Curriculum i.e. Edexcel", blank=True, null=True)
     learning_mode = models.CharField(max_length=50, help_text="Home/Online or both",
-                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True)
+                                     choices=[('home', 'Home'), ('online', 'Online'), ('both', 'Both')], blank=True, null=True)
 
-
-    current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1")
-    subjects = models.JSONField(default=list, help_text="Subjects of interest", blank=True)
+    current_class = models.CharField(max_length=50, help_text="Current class/grade i.e. 1, 9, P-1", blank=True, null=True)
+    subjects = models.JSONField(default=list, help_text="Subjects of interest", blank=True, null=True)
     special_requirements = models.TextField(blank=True, null=True, help_text="Any special requirements or requests")
 
     # Status
@@ -302,7 +277,7 @@ class StudentQuery(models.Model):
     admin_notes = models.TextField(blank=True, null=True, help_text="Admin notes for this query")
 
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     # Link to user if they register later
@@ -315,7 +290,7 @@ class StudentQuery(models.Model):
     )
 
     def __str__(self):
-        return f"Query by {self.full_name} - {self.email}"
+        return f"Query_id {self.query_id} by {self.full_name} - {self.email}"
 
     class Meta:
         db_table = 'student_queries'
@@ -326,7 +301,3 @@ class StudentQuery(models.Model):
             models.Index(fields=['is_processed']),
             models.Index(fields=['created_at']),
         ]
-
-
-    level = models.CharField(max_length=50, help_text="Level i.e. O-level, grade", blank=True, null=True) # not needed
-

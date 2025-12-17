@@ -1,4 +1,5 @@
 # authenticate/view.py
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -383,6 +384,10 @@ class ProfileUpdateView(APIView):
         
         serializer = serializer_class(profile, data=request.data,partial=True)
         if serializer.is_valid():
+            # If teacher, mark status as pending
+            if request.user.role == 'teacher':
+                profile.status = 'pending'
+
             serializer.save()
             log_activity(
                 user=request.user,
@@ -419,6 +424,10 @@ class ProfileUpdateView(APIView):
         
         serializer = serializer_class(profile, data=request.data, partial=True)
         if serializer.is_valid():
+            # If teacher, mark status as pending
+            if request.user.role == 'teacher':
+                profile.status = 'pending'
+
             serializer.save()
             log_activity(
                 user=request.user,
@@ -525,7 +534,7 @@ class CreateTeacherProfileView(APIView):
 
         # Parse JSON and files
         try:
-            data_json = json.loads(request.data.get("data", "{}"))
+            data_json = request.data.copy()
         except json.JSONDecodeError:
             return Response({"success": False, "message": "Invalid JSON in 'data' field"}, status=400)
 
@@ -577,7 +586,7 @@ class StudentQueryView(APIView):
     Handle student query form submission (no authentication required)
     """
     permission_classes = [AllowAny]
-    
+
     @swagger_auto_schema(
         request_body=StudentQuerySerializer,
         responses={
@@ -586,15 +595,55 @@ class StudentQueryView(APIView):
         }
     )
     def post(self, request):
+        email = request.data.get('email', '').strip().lower()[:255]
+        if not email:
+            return Response(
+                {'success': False, 'message': 'Email is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        is_staff = request.user.is_authenticated and request.user.is_staff
+
+        # Cache keys for rate limiting
+        hour_key = f"student_query:hour:{email}"
+        day_key = f"student_query:day:{email}"
+        block_key = f"student_query:block:{email}"
+
+        if not is_staff:
+            # Check 24h hard block
+            if cache.get(block_key):
+                return Response(
+                    {
+                        'success': False,
+                        'message': 'You are temporarily blocked from submitting queries. Please try again after 24 hours.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+            # Check hourly limit
+            hour_count = cache.get(hour_key, 0)
+            if hour_count >= 3:
+                return Response(
+                    {
+                        'success': False,
+                        'message': 'You have reached the maximum of 3 queries per hour. Please try again later.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+        # Validate serializer
         serializer = StudentQuerySerializer(data=request.data)
-        if serializer.is_valid():
-            data = serializer.validated_data
+        serializer.is_valid(raise_exception=True)
 
-            # Normalize subjects (order-independent comparison)
-            normalized_subjects = sorted(set(data.get('subjects', [])))
-            data['subjects'] = normalized_subjects
+        data = serializer.validated_data
+        normalized_subjects = sorted(set(data.get('subjects', [])))
+        data['subjects'] = normalized_subjects
 
-            # Check for exact duplicate query
+        duplicate_query = None
+        query = None
+
+        with transaction.atomic():
+            # Duplicate detection
             candidates = StudentQuery.objects.filter(
                 email=data['email'],
                 full_name=data['full_name'],
@@ -604,50 +653,67 @@ class StudentQueryView(APIView):
                 curriculum=data['curriculum'],
                 current_class=data['current_class']
             )
-            duplicate_query = None
-            for query in candidates:
-                if sorted(query.subjects) == normalized_subjects:
-                    duplicate_query = query
+            for q in candidates:
+                if sorted(q.subjects) == normalized_subjects:
+                    duplicate_query = q
                     break
 
-            if duplicate_query:
-                return Response({
+            # Save new query if not duplicate
+            if not duplicate_query:
+                user = User.objects.filter(email=data['email']).first()
+                query = serializer.save(
+                    subjects=normalized_subjects,
+                    linked_user=user,
+                    is_registered=bool(user)
+                )
+
+                # Increment counters only on successful save
+                if not is_staff:
+                    # Hourly counter (3 per hour)
+                    if not cache.add(hour_key, 1, timeout=3600):
+                        cache.incr(hour_key)
+
+                    # Daily counter (block after 5)
+                    if not cache.add(day_key, 1, timeout=86400):
+                        day_count = cache.incr(day_key)
+                    else:
+                        day_count = 1
+
+                    if day_count >= 5:
+                        cache.set(block_key, True, timeout=86400)
+
+                # Send confirmation email after DB commit
+                transaction.on_commit(lambda q=query: self.send_confirmation_email(q))
+
+        # Duplicate response
+        if duplicate_query:
+            return Response(
+                {
                     'success': False,
                     'message': 'An identical query already exists.',
-                    'data': {'query_id': duplicate_query.id}
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Check if a User exists with this email
-            user = User.objects.filter(email=data['email']).first()
-            # Save query, link to user if exists
-            query = serializer.save(subjects=normalized_subjects, linked_user=user, is_registered=bool(user))
-
-            log_activity(
-                user=None,  # anonymous, user not authenticated
-                email=query.email,
-                action="Submitted student query",
-                module="StudentQuery",
-                request=request,
-                extra_info={"query_id": query.id, "name": query.full_name}
+                    'data': {'query_id': duplicate_query.query_id}
+                },
+                status=status.HTTP_409_CONFLICT
             )
-            
-            # Create admin notification
-            # self.create_admin_notification(query)
-            
-            # Send confirmation email to student
-            self.send_confirmation_email(query)
-            
-            return Response({
+
+        # Log activity
+        log_activity(
+            user=None,
+            email=query.email,
+            action="Submitted student query",
+            module="StudentQuery",
+            request=request,
+            extra_info={"query_id": query.id, "name": query.full_name}
+        )
+
+        return Response(
+            {
                 'success': True,
-                'message': 'Your query has been submitted successfully! We will contact you soon.',
-                'data': serializer.data
-            }, status=status.HTTP_201_CREATED)
-        
-        return Response({
-            'success': False,
-            'message': 'Please check your information and try again.',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+                'message': 'Your query has been submitted successfully!',
+                'data': StudentQuerySerializer(query).data
+            },
+            status=status.HTTP_201_CREATED
+        )
     
     # def create_admin_notification(self, query):
     #     """Create notification for admin"""
