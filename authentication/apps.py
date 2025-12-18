@@ -1,3 +1,5 @@
+# authentication/apps.py
+
 from django.apps import AppConfig
 
 
@@ -6,4 +8,9 @@ class AuthenticationConfig(AppConfig):
     name = 'authentication'
 
     def ready(self):
-        import authentication.signals 
+        # Import and register signals
+        try:
+            import authentication.signals
+            print("Signals imported successfully!")
+        except Exception as e:
+            print(f"Error importing signals: {e}")

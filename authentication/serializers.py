@@ -128,8 +128,8 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     identity_no = serializers.CharField(required=True)
 
     # location
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=True)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=True)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
 
     teaching_mode = serializers.CharField(required=True)
     subjects = serializers.JSONField(required=True)

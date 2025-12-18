@@ -249,6 +249,13 @@ class StudentQuery(models.Model):
     """
     Student Query Form - for visitors who want to inquire before registration
     """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('converted', 'Converted to Job'),
+    ]
+
     # Basic Info
     full_name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -272,6 +279,7 @@ class StudentQuery(models.Model):
     # Status
     query_id = models.CharField(max_length=20, unique=True, editable=False,
         default=generate_query_id)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_registered = models.BooleanField(default=False, help_text="Has this person registered as a student?")
     is_processed = models.BooleanField(default=False, help_text="Has admin processed this query?")
     admin_notes = models.TextField(blank=True, null=True, help_text="Admin notes for this query")
@@ -287,6 +295,14 @@ class StudentQuery(models.Model):
         null=True,
         blank=True,
         help_text="User account if they registered later"
+    )
+    # Field to track if job was created
+    linked_job = models.OneToOneField(
+        'job_board.JobPost',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Job post created from this query"
     )
 
     def __str__(self):
