@@ -35,31 +35,39 @@
 
 # authentication/signals.py
 
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.utils import timezone
 from .models import StudentQuery
+from django.utils import timezone
 from job_board.models import JobPost
 
 
 @receiver(post_save, sender=StudentQuery)
 def handle_query_status_change(sender, instance, created, **kwargs):
-    """
-    Create a JobPost when a StudentQuery is approved for the first time.
-    """
     if created:
         return
 
-    # Only act when approved AND job not already created
     if instance.status == 'approved' and not instance.linked_job:
-        create_job_from_query(instance)
+        # VERY IMPORTANT: defer execution until admin transaction commits
+        transaction.on_commit(
+            lambda: create_job_from_query(instance.pk)
+        )
 
-def create_job_from_query(query):
+def create_job_from_query(query_id):
     try:
-        # Ensure student exists
+        query = StudentQuery.objects.select_related(
+            'linked_user__student_profile'
+        ).get(pk=query_id)
+
+        # Safety re-check
+        if query.status != 'approved' or query.linked_job:
+            return None
+
         if not query.linked_user or not hasattr(query.linked_user, 'student_profile'):
-            query.admin_notes = "Approved – waiting for student registration"
-            query.save(update_fields=['admin_notes'])
+            StudentQuery.objects.filter(pk=query.pk).update(
+                admin_notes="Approved – waiting for student registration"
+            )
             return None
 
         student_profile = query.linked_user.student_profile
@@ -91,9 +99,9 @@ def create_job_from_query(query):
             additional_notes=f"Converted from student query {query.query_id}",
         )
 
-        # Link job to query safely
-        query.linked_job = job_post
-        query.save(update_fields=['linked_job'])
+        StudentQuery.objects.filter(pk=query.pk).update(
+            linked_job=job_post
+        )
 
         return job_post
 
