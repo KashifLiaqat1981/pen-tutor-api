@@ -10,34 +10,32 @@ from .models import JobPost, JobApplication, JobReview
 @admin.register(JobPost)
 class JobPostAdmin(admin.ModelAdmin):
     list_display = [
-        'title', 'student_name', 'subject_display', 'teaching_mode', 
+        'title', 'student_name', 'subject', 'teaching_mode',
         'budget_display', 'status', 'applications_count', 'created_at'
     ]
     list_filter = [
-        'status', 'teaching_mode', 'budget_type', 'created_at',
-        'course', 'duration_unit'
+        'status', 'teaching_mode', 'budget_type', 'created_at'
     ]
     search_fields = [
-        'title', 'description', 'subject_text', 'student__user__username',
+        'title', 'description', 'subject', 'student__user__username',
         'student__user__first_name', 'student__user__last_name'
     ]
     readonly_fields = [
         'created_at', 'updated_at', 'applications_count', 'student_profile_link'
     ]
-    raw_id_fields = ['student', 'course', 'selected_teacher']
+    raw_id_fields = ['student', 'selected_teacher']
     
     fieldsets = (
         ('Basic Information', {
             'fields': ('title', 'description', 'student', 'student_profile_link')
         }),
-        ('Subject & Course', {
-            'fields': ('course', 'subject_text'),
-            'description': 'Either select a course or provide subject as text'
+        ('Academic Details', {
+            'fields': ('curriculum', 'current_class', 'subject')
         }),
         ('Job Details', {
             'fields': (
                 'teaching_mode', 'location', 'budget_amount', 'budget_type',
-                'duration_value', 'duration_unit', 'days_to_study', 'time_to_study',
+                'days_to_study', 'time_to_study_start', 'time_to_study_end',
                 'gender', 'deadline'
             )
         }),
@@ -73,16 +71,18 @@ class JobPostAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'student__user', 'course', 'selected_teacher__user'
+            'student__user', 'selected_teacher__user'
         ).prefetch_related('applications')
 
 
 class JobApplicationInline(admin.TabularInline):
     model = JobApplication
+    fk_name = "job_post"
     extra = 0
+    fields = ['teacher', 'chat_room', 'teacher_finalized', 'student_finalized',
+              'is_finalized', 'status']
     readonly_fields = ['applied_at', 'updated_at']
     raw_id_fields = ['teacher']
-    fields = ['teacher', 'status', 'proposed_rate', 'applied_at']
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('teacher__user')
@@ -92,14 +92,14 @@ class JobApplicationInline(admin.TabularInline):
 class JobApplicationAdmin(admin.ModelAdmin):
     list_display = [
         'job_title', 'teacher_name', 'student_name', 'status', 
-        'final_rate', 'applied_at'
+        'applied_at'
     ]
     list_filter = ['status', 'applied_at', 'job_post__status', 'job_post__teaching_mode']
     search_fields = [
         'job_post__title', 'teacher__user__username', 'teacher__user__first_name',
         'teacher__user__last_name', 'job_post__student__user__username'
     ]
-    readonly_fields = ['applied_at', 'updated_at', 'final_rate', 'job_link', 'teacher_profile_link']
+    readonly_fields = ['applied_at', 'updated_at', 'job_link', 'teacher_profile_link']
     raw_id_fields = ['job_post', 'teacher']
     
     fieldsets = (
@@ -107,7 +107,8 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'fields': ('job_post', 'job_link', 'teacher', 'teacher_profile_link', 'status')
         }),
         ('Application Content', {
-            'fields': ('cover_letter', 'proposed_rate', 'final_rate')
+            'fields': ('finalized_days', 'finalized_budget', 'finalized_time_start', 'finalized_time_end', 'is_finalized',
+                       'demo_class_time')
         }),
         ('Timestamps', {
             'fields': ('applied_at', 'updated_at'),

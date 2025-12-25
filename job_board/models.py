@@ -4,23 +4,16 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from authentication.models import StudentProfile, TeacherProfile
-from courses.models import Course
 
 User = settings.AUTH_USER_MODEL
 
 class JobPost(models.Model):
     TEACHING_MODE_CHOICES = [
-        ('remote', 'Remote'),
-        ('in person', 'In Person'),
+        ('online', 'Online'),
+        ('home', 'Home'),
+        ('hybrid', 'Hybrid')
     ]
 
-    DURATION_CHOICES = [
-        ('hour', 'Hour'),
-        ('day', 'Day'),
-        ('week', 'Week'),
-        ('month', 'Month'),
-    ]
-    
     BUDGET_TYPE_CHOICES = [
         ('per_hour', 'Per Hour'),
         ('per_day', 'Per Day'),
@@ -53,93 +46,38 @@ class JobPost(models.Model):
     ]
     
     # Core fields
-    student = models.ForeignKey(
-        StudentProfile, 
-        on_delete=models.CASCADE,
-        related_name='job_posts'
-    )
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='job_posts')
     title = models.CharField(max_length=200)
     description = models.TextField()
-    
-    # Subject - can be linked to Course or free text
-    course = models.ForeignKey(
-        Course, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        help_text="Select a course if available"
-    )
-    subject_text = models.CharField(
-        max_length=100, 
-        blank=True,
-        help_text="Or enter subject as text"
-    )
+    curriculum = models.CharField(max_length=30, blank=True, null=True)
+    current_class = models.CharField(max_length=30, blank=True, null=True)
+
+    subject = models.JSONField(default=list, help_text="Subjects you can teach", blank=True, null=True)
     
     # Teaching preferences
-    teaching_mode = models.CharField(
-        max_length=10, 
-        choices=TEACHING_MODE_CHOICES,
-        default='remote'
-    )
+    teaching_mode = models.CharField(max_length=10, choices=TEACHING_MODE_CHOICES, default='hybrid')
     
     # Budget information
-    budget_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2,
-        validators=[MinValueValidator(0)]
-    )
-    budget_type = models.CharField(
-        max_length=10, 
-        choices=BUDGET_TYPE_CHOICES,
-        default='per_hour'
-    )
-    
-    # Duration
-    duration_value = models.PositiveIntegerField(
-        help_text="Number of hours/days/sessions"
-    )
-    duration_unit = models.CharField(
-        max_length=20,
-        default='hours',
-        choices=DURATION_CHOICES,
-        help_text="e.g., hours, days, sessions"
-    )
-    
+    budget_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    budget_type = models.CharField(max_length=10, choices=BUDGET_TYPE_CHOICES, default='per_hour')
+
     # Additional information
     additional_notes = models.TextField(blank=True)
-    location = models.CharField(
-        max_length=200, 
-        blank=True,
-        help_text="Required for physical teaching mode"
-    )
+    location = models.CharField(max_length=200, blank=True,
+        help_text="Required for physical teaching mode")
 
     # Preferred time to study (e.g., 5:00 PM)
-    time_to_study = models.TimeField(
-        null=True,
-        blank=True,
-        help_text="Preferred study time"
-    )
+    time_to_study_start = models.TimeField(null=True, blank=True, help_text="Preferred study time")
+    time_to_study_end = models.TimeField(null=True, blank=True, help_text="Preferred study time")
 
     # Preferred days to study (multiple days)
-    days_to_study = models.CharField(
-        max_length=200,
-        blank=True,
-        help_text="Comma-separated list of days e.g. monday,tuesday"
-    )
+    days_to_study = models.JSONField(default=list, help_text="Days available for class", blank=True, null=True)
 
     # Preferred teacher gender
-    gender = models.CharField(
-        max_length=10,
-        choices=GENDER_CHOICES,
-        default='any'
-    )
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='any')
     
     # Status and management
-    status = models.CharField(
-        max_length=15, 
-        choices=STATUS_CHOICES, 
-        default='open'
-    )
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open')
     selected_teacher = models.ForeignKey(
         TeacherProfile,
         on_delete=models.SET_NULL,
@@ -151,11 +89,7 @@ class JobPost(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deadline = models.DateTimeField(
-        null=True, 
-        blank=True,
-        help_text="When do you need this to be completed?"
-    )
+    deadline = models.DateTimeField(null=True, blank=True, help_text="When do you need this to be completed?")
     
     class Meta:
         ordering = ['-created_at']
@@ -166,13 +100,7 @@ class JobPost(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.student.user.username}"
-    
-    @property
-    def subject_display(self):
-        """Return the subject as course name or text"""
-        if self.course:
-            return self.course.name
-        return self.subject_text or "Subject not specified"
+
     
     @property
     def applications_count(self):
@@ -205,24 +133,39 @@ class JobApplication(models.Model):
     )
     
     # Application content
-    cover_letter = models.TextField(
-        help_text="Why are you the right fit for this job?"
-    )
-    proposed_rate = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
+    chat_room = models.ForeignKey(
+        'chate_box.ChatRoom',  # Note: Use string reference since it's in another app
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        validators=[MinValueValidator(0)],
-        help_text="Leave blank to accept student's budget"
+        related_name='job_applications'
     )
+
+    teacher_finalized_days = models.JSONField(default=list, blank=True, null=True)
+    teacher_finalized_time_start = models.TimeField(null=True, blank=True)
+    teacher_finalized_time_end = models.TimeField(null=True, blank=True)
+    teacher_finalized_budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    teacher_demo_class_time = models.DateTimeField(null=True, blank=True)
+    teacher_finalized = models.BooleanField(default=False)
+
+    student_finalized_days = models.JSONField(default=list, blank=True, null=True)
+    student_finalized_time_start = models.TimeField(null=True, blank=True)
+    student_finalized_time_end = models.TimeField(null=True, blank=True)
+    student_finalized_budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    student_demo_class_time = models.DateTimeField(null=True, blank=True)
+    student_finalized = models.BooleanField(default=False)
+
+    # Also add these fields for finalization
+    finalized_days = models.JSONField(default=list, blank=True, null=True)
+    finalized_time_start = models.TimeField(null=True, blank=True)
+    finalized_time_end = models.TimeField(null=True, blank=True)
+    finalized_budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    demo_class_time = models.DateTimeField(null=True, blank=True)
+    is_finalized = models.BooleanField(default=False)
+    finalized_at = models.DateTimeField(null=True, blank=True)
     
     # Status
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default='pending'
-    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     
     # Timestamps
     applied_at = models.DateTimeField(auto_now_add=True)
@@ -240,16 +183,13 @@ class JobApplication(models.Model):
         return f"{self.teacher.user.username} -> {self.job_post.title}"
     
     @property
-    def final_rate(self):
-        """Return the proposed rate or job's budget"""
-        if self.proposed_rate:
-            return self.proposed_rate
-        return self.job_post.budget_amount
-    
-    @property
     def is_pending(self):
         return self.status == 'pending'
-    
+
+    @property
+    def both_finalized(self):
+        return self.teacher_finalized and self.student_finalized
+
     @property
     def is_accepted(self):
         return self.status == 'accepted'
