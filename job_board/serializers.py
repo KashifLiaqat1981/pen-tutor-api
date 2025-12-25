@@ -96,7 +96,7 @@ class JobPostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobPost
         fields = [
-            'id', 'title', 'description', 'student', 'subject',
+            'id', 'title', 'description', 'student', 'subject', 'current_class', 'curriculum',
             'teaching_mode', 'budget_amount', 'budget_type', 'location', 'status', 'applications_count',
             'created_at', 'time_ago', 'deadline', 'time_to_study_start', 'time_to_study_end',
             'days_to_study', 'gender'
