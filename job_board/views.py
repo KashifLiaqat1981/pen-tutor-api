@@ -21,6 +21,8 @@ from .permissions import (
     IsApplicationOwnerOrJobOwner, CanApplyToJob, IsStudentOrTeacher,
     CanReviewJob, IsJobParticipant
 )
+from chate_box.models import ChatRoom  # Import ChatRoom from your chat app
+from authentication.models import User
 from .filters import JobPostFilter
 
 
@@ -30,13 +32,13 @@ class JobPostListView(generics.ListAPIView):
     List all open job posts. Available to both students and teachers.
     """
     queryset = JobPost.objects.filter(status='open').select_related(
-        'student__user', 'course', 'selected_teacher__user'
+        'student__user', 'selected_teacher__user'
     ).prefetch_related('applications')
     serializer_class = JobPostListSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = JobPostFilter
-    search_fields = ['title', 'description', 'subject_text', 'course__name']
+    search_fields = ['title', 'description', 'subject']
     ordering_fields = ['created_at', 'budget_amount', 'deadline']
     ordering = ['-created_at']
 
@@ -72,7 +74,7 @@ class JobPostDetailView(generics.RetrieveUpdateAPIView):
     Retrieve and update a specific job post.
     """
     queryset = JobPost.objects.select_related(
-        'student__user', 'course', 'selected_teacher__user'
+        'student__user', 'selected_teacher__user'
     ).prefetch_related('applications__teacher__user')
     serializer_class = JobPostDetailSerializer
     permission_classes = [AllowAny]
@@ -115,6 +117,33 @@ class JobApplicationCreateView(generics.CreateAPIView):
         job_post = get_object_or_404(JobPost, id=self.kwargs['job_id'])
         context['job_post'] = job_post
         return context
+
+    def perform_create(self, serializer):
+        # Get job_post and teacher
+        job_post = self.get_serializer_context()['job_post']
+        teacher_profile = self.request.user.teacher_profile
+
+        # Create the application
+        application = serializer.save(
+            job_post=job_post,
+            teacher=teacher_profile
+        )
+
+        # Automatically create a ChatRoom for negotiations
+        chat_room = ChatRoom.objects.create(
+            name=f"Job Negotiation: {job_post.title}",
+            room_type='job',
+            description=f"Chat for job application between {job_post.student.user.username} and {teacher_profile.user.username}",
+            created_by=teacher_profile.user,  # Teacher is initiating the application
+            job_id=job_post.id  # Link to job
+        )
+
+        # Add participants: student and teacher
+        chat_room.participants.add(job_post.student.user, teacher_profile.user)
+
+        # Link the chat_room to the application
+        application.chat_room = chat_room
+        application.save()
 
     def create(self, request, *args, **kwargs):
         try:
@@ -222,7 +251,7 @@ class StudentDashboardView(generics.ListAPIView):
     def get_queryset(self):
         return JobPost.objects.filter(
             student__user=self.request.user
-        ).select_related('course', 'selected_teacher__user').prefetch_related(
+        ).select_related('selected_teacher__user').prefetch_related(
             'applications'
         ).order_by('-created_at')
 
@@ -264,7 +293,7 @@ class TeacherDashboardView(generics.ListAPIView):
     def get_queryset(self):
         return JobApplication.objects.filter(
             teacher__user=self.request.user
-        ).select_related('job_post__student__user', 'job_post__course').order_by('-applied_at')
+        ).select_related('job_post__student__user').order_by('-applied_at')
 
     def list(self, request, *args, **kwargs):
         try:

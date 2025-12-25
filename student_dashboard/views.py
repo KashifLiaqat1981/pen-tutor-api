@@ -11,6 +11,8 @@ from django.utils import timezone
 from courses.models import Course, Video, Quiz, Assignment, Enrollment, Progress
 from courses.serializers import CourseListSerializer, CourseDetailSerializer
 from payments.models import Payment
+from group_sessions.models import GroupSessionEnrollment
+from group_sessions.serializers import EnrollmentSerializer
 from email_automation.tasks import send_enrollment_email
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -50,6 +52,8 @@ def student_dashboard(request):
     # Get recent activities
     recent_enrollments = enrollments.order_by('-enrolled_at')[:5]
     recent_progress = Progress.objects.filter(student=student_profile).order_by('-completed_at')[:10]
+    group_session_enrollments = GroupSessionEnrollment.objects.filter(student=request.user).count()
+    completed_group_sessions = GroupSessionEnrollment.objects.filter(student=request.user, status='completed').count()
     
     # Available courses (not enrolled)
     enrolled_course_ids = enrollments.values_list('course_id', flat=True)
@@ -68,6 +72,8 @@ def student_dashboard(request):
             'member_since': member_since,
             'student_id': student_profile.student_id,
             'statistics': {
+                'group_session_enrollments': group_session_enrollments,
+                'completed_group_sessions': completed_group_sessions,
                 'total_enrollments': total_enrollments,
                 'completed_courses': completed_courses,
                 'in_progress_courses': in_progress_courses,
@@ -88,6 +94,21 @@ def student_dashboard(request):
         }
     }, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_group_sessions(request):
+    """Get student's group session enrollments"""
+    if request.user.role != 'student':
+        return Response({'success': False, 'message': 'Access denied'}, status=403)
+
+    enrollments = GroupSessionEnrollment.objects.filter(student=request.user)
+    serializer = EnrollmentSerializer(enrollments, many=True)
+
+    return Response({
+        'success': True,
+        'data': serializer.data
+    })
 
 
 @swagger_auto_schema(

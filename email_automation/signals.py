@@ -37,34 +37,34 @@ def handle_enrollment_created(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Payment)
 def handle_payment_success(sender, instance, created, **kwargs):
-    """
-    Send payment confirmation email when payment is successful
-    """
-    # Check if payment status changed to successful
-    if instance.is_successful:
-        # Check if this is a status change (not a new creation with success=True)
-        if not created:
-            try:
-                # Get the previous state from database
-                old_instance = Payment.objects.get(pk=instance.pk)
-                if hasattr(old_instance, '_state') and not old_instance.is_successful:
-                    # Payment status changed from unsuccessful to successful
-                    logger.info(f"Payment successful: {instance.user.email} -> {instance.course.title}")
-                    
-                    send_payment_confirmation_email(
-                        user_id=instance.user.id,
-                        payment_id=instance.id
-                    )
-            except Payment.DoesNotExist:
-                pass
-        elif created and instance.is_successful:
-            # New payment created with success=True
-            logger.info(f"New successful payment: {instance.user.email} -> {instance.course.title}")
-            
-            send_payment_confirmation_email.delay(
-                user_id=instance.user.id,
-                payment_id=instance.id
-            )
+    # Only trigger on new successful payments
+    if not created or not instance.is_successful:
+        return
+
+    # Determine what this payment is for
+    if instance.course:
+        content_type = "Course"
+        title = instance.course.title
+    elif hasattr(instance, 'group_session') and instance.group_session:
+        content_type = "Group Session"
+        title = instance.group_session.title
+    else:
+        content_type = "Unknown"
+        title = "No linked content"
+
+    logger.info(
+        f"New successful payment: {instance.user.email} paid {instance.amount} {instance.gateway} "
+        f"for {content_type}: {title} (txn_ref: {instance.txn_ref})"
+    )
+
+    try:
+        send_payment_confirmation_email.delay(
+            user_id=instance.user.id,
+            payment_id=instance.id
+        )
+    except Exception as e:
+        # Log but don't crash the save
+        logger.warning(f"Could not send email task (Celery/RabbitMQ down): {e}")
 
 
 @receiver(post_save, sender=Participant)

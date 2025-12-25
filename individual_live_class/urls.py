@@ -3,7 +3,7 @@
 from django.urls import path
 from . import views
 
-app_name = 'live_classes'
+app_name = 'live-class'
 
 urlpatterns = [
     # Teacher URLs
@@ -35,4 +35,5 @@ urlpatterns = [
     # Analytics & Utility
     path('schedule/<uuid:schedule_id>/analytics/', views.schedule_analytics, name='schedule_analytics'),
     path('upcoming/', views.upcoming_classes, name='upcoming_classes'),
+    path('upcoming-sessions/', views.upcoming_sessions, name='upcoming-sessions'),
 ]

@@ -11,6 +11,8 @@ from .views import (
     ProfileUpdateView,
     CreateStudentProfileView,
     CreateTeacherProfileView,
+    TeacherProfileDetailView,
+    PublicTeacherListView,
     StudentQueryView
 )
 
@@ -27,5 +29,7 @@ urlpatterns = [
     # request for teacher/studnet
     path('student-profile/create/', CreateStudentProfileView.as_view(), name='create-student-profile'),
     path('teacher-profile/create/', CreateTeacherProfileView.as_view(), name='create-teacher-profile'),
+    path("teachers/", PublicTeacherListView.as_view(), name="public-teacher-list"),
+    path('teachers/<uuid:user_id>/', TeacherProfileDetailView.as_view(), name='teacher-profile-detail'),
     path('student-query/', StudentQueryView.as_view(), name='student-query'),
 ]

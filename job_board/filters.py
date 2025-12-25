@@ -19,12 +19,8 @@ class JobPostFilter(django_filters.FilterSet):
     # Status
     status = django_filters.ChoiceFilter(choices=JobPost.STATUS_CHOICES)
     
-    # Course filtering
-    course = django_filters.NumberFilter(field_name='course__id')
-    course_name = django_filters.CharFilter(field_name='course__name', lookup_expr='icontains')
-    
     # Subject text filtering
-    subject = django_filters.CharFilter(field_name='subject_text', lookup_expr='icontains')
+    subject = django_filters.CharFilter(field_name='subject', lookup_expr='icontains')
     
     # Location filtering (for physical jobs)
     location = django_filters.CharFilter(field_name='location', lookup_expr='icontains')
@@ -37,11 +33,6 @@ class JobPostFilter(django_filters.FilterSet):
     deadline_after = django_filters.DateTimeFilter(field_name='deadline', lookup_expr='gte')
     deadline_before = django_filters.DateTimeFilter(field_name='deadline', lookup_expr='lte')
     
-    # Duration filtering
-    duration_min = django_filters.NumberFilter(field_name='duration_value', lookup_expr='gte')
-    duration_max = django_filters.NumberFilter(field_name='duration_value', lookup_expr='lte')
-    duration_unit = django_filters.CharFilter(field_name='duration_unit', lookup_expr='icontains')
-    
     # Application count filtering (jobs with more/fewer applications)
     has_applications = django_filters.BooleanFilter(method='filter_has_applications')
     min_applications = django_filters.NumberFilter(method='filter_min_applications')
@@ -51,9 +42,8 @@ class JobPostFilter(django_filters.FilterSet):
         model = JobPost
         fields = [
             'budget_min', 'budget_max', 'teaching_mode', 'budget_type', 'status',
-            'course', 'course_name', 'subject', 'location',
+            'subject', 'location',
             'created_after', 'created_before', 'deadline_after', 'deadline_before',
-            'duration_min', 'duration_max', 'duration_unit',
             'has_applications', 'min_applications', 'max_applications'
         ]
     

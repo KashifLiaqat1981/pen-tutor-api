@@ -24,6 +24,8 @@ from .serializers import (
 from authentication.models import StudentProfile, TeacherProfile,User
 from meetings.models import Meeting
 from notifications.models import Notification
+from rest_framework.permissions import IsAuthenticated
+from job_board.models import JobApplication
 
 
 # Teacher Views
@@ -479,3 +481,68 @@ def upcoming_classes(request):
     upcoming.sort(key=lambda x: x['scheduled_time'])
     
     return Response(upcoming[:10])  # Return next 10 classes
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def upcoming_sessions(request):
+    """
+    List upcoming sessions for a student (or teacher)
+    Only for accepted jobs.
+    First session is demo class; after payment, further sessions.
+    """
+    user = request.user
+    now = timezone.now()
+    sessions = []
+
+    if hasattr(user, 'student_profile'):
+        applications = JobApplication.objects.filter(
+            job_post__student=user.student_profile,
+            status='accepted',
+            is_finalized=True
+        )
+    elif hasattr(user, 'teacher_profile'):
+        applications = JobApplication.objects.filter(
+            teacher=user.teacher_profile,
+            status='accepted',
+            is_finalized=True
+        )
+    else:
+        applications = JobApplication.objects.none()
+
+    for app in applications:
+        # Demo class
+        if app.demo_class_time:
+            demo_datetime = app.demo_class_time
+            if demo_datetime > now:
+                sessions.append({
+                    "type": "Demo Class",
+                    "student_id": str(app.job_post.student.id),
+                    "class_level": getattr(app.job_post.student, 'current_class', ''),
+                    "subject": app.job_post.subject,
+                    "date_day": demo_datetime.strftime("%Y-%m-%d"),
+                    "timings": f"{demo_datetime.strftime('%I:%M %p')} - {(demo_datetime + timedelta(hours=1)).strftime('%I:%M %p')}",
+                    "mode": app.job_post.teaching_mode,
+                    "teacher": app.teacher.user.get_full_name() or app.teacher.user.username
+                })
+
+        # Regular sessions (only if payment done)
+        if hasattr(app, 'payment_completed') and app.payment_completed:
+            # Example: assume weekly sessions
+            start_date = (app.demo_class_time + timedelta(days=7)) if app.demo_class_time else now
+            for i in range(4):  # next 4 weeks
+                session_date = start_date + timedelta(weeks=i)
+                sessions.append({
+                    "type": "Regular Class",
+                    "student_id": str(app.job_post.student.id),
+                    "class_level": getattr(app.job_post.student, 'current_class', ''),
+                    "subject": app.job_post.subject,
+                    "date_day": session_date.strftime("%Y-%m-%d"),
+                    "timings": f"{app.finalized_time_start.strftime('%I:%M %p')} - {app.finalized_time_end.strftime('%I:%M %p')}",
+                    "mode": app.job_post.teaching_mode,
+                    "teacher": app.teacher.user.get_full_name() or app.teacher.user.username
+                })
+
+    # Sort by date
+    sessions.sort(key=lambda x: x['date_day'])
+    return Response(sessions[:20])  # limit to next 20 sessions

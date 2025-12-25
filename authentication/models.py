@@ -144,24 +144,15 @@ class TeacherProfile(models.Model):
     degree_certificates = models.FileField(upload_to='teacher_documents/degrees/', null=True, blank=True)
     id_proof = models.FileField(upload_to='teacher_documents/id_proofs/', null=True, blank=True)
 
-    teacher_id = models.CharField(max_length=20, unique=True, editable=False,
-                                default=generate_teacher_id)
-
-    department = models.CharField(max_length=100, blank=True, null=True)
-    teaching_style = models.TextField(blank=True, null=True)
     languages_spoken = models.JSONField(default=list, blank=True, null=True)
-
     education = models.JSONField(default=list, blank=True, null=True)
-    certifications = models.JSONField(default=list, blank=True, null=True)
-    awards = models.JSONField(default=list, blank=True, null=True)
-    publications = models.JSONField(default=list, blank=True, null=True)
-
+    availability_schedule = models.JSONField(default=list, blank=True, null=True)
     # Professional Links
     youtube_channel = models.URLField(blank=True, null=True)
-    social_links = models.JSONField(default=dict, blank=True, null=True)
-    # Availability and Preferences
-    availability_schedule = models.JSONField(default=dict, blank=True, null=True)
-    preferred_teaching_methods = models.JSONField(default=list, blank=True, null=True)
+    social_links = models.URLField(blank=True, null=True)
+
+    teacher_id = models.CharField(max_length=20, unique=True, editable=False,
+                                default=generate_teacher_id)
 
     # Course Related
     courses_created = models.ManyToManyField('courses.Course', related_name='instructors',blank=True)
@@ -197,8 +188,9 @@ class TeacherProfile(models.Model):
         """
         required_fields = [
             'full_name', 'phone', 'date_of_birth', 'gender', 'country', 'city', 'address', 'identity_no',
-            'teaching_mode', 'subjects', 'curriculum', 'classes', 'years_of_experience', 'hourly_rate',
-            'headline', 'profile_picture', 'resume', 'degree_certificates', 'id_proof', 'location'
+            'teaching_mode', 'subjects', 'curriculum', 'classes', 'years_of_experience', 'currency', 'hourly_rate',
+            'headline', 'profile_picture', 'resume', 'degree_certificates', 'id_proof', 'location', 'languages_spoken',
+            'education', 'availability_schedule'
         ]
 
         for field_name in required_fields:
@@ -211,15 +203,15 @@ class TeacherProfile(models.Model):
     @property
     def profile_completion_percentage(self):
         """
-        Bonus: Returns a percentage (0-100) of profile completeness.
+        Returns a percentage (0-100) of profile completeness.
         Great for progress bars in frontend!
         """
         if not hasattr(self, '_completion_fields'):
             self._completion_fields = [
-                'full_name', 'phone', 'date_of_birth', 'gender', 'country', 'city',
-                'address', 'identity_no', 'teaching_mode', 'subjects', 'curriculum',
-                'classes', 'years_of_experience', 'hourly_rate', 'headline',
-                'profile_picture', 'resume', 'degree_certificates', 'id_proof'
+                'full_name', 'phone', 'date_of_birth', 'gender', 'country', 'city', 'address', 'identity_no',
+                'teaching_mode', 'subjects', 'curriculum', 'classes', 'years_of_experience', 'currency', 'hourly_rate',
+                'headline', 'profile_picture', 'resume', 'degree_certificates', 'id_proof', 'location',
+                'languages_spoken', 'education', 'availability_schedule'
             ]
 
         total = len(self._completion_fields)

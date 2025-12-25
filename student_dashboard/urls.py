@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     # Dashboard overview
     path('', views.student_dashboard, name='student_dashboard'),
+    path('group-sessions/', views.student_group_sessions, name='student-group-sessions'),
     
     # Courses
     path('courses/', views.student_enrolled_courses, name='student_enrolled_courses'),

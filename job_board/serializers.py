@@ -4,13 +4,6 @@ from rest_framework import serializers
 from django.utils import timezone
 from .models import JobPost, JobApplication, JobReview
 from authentication.models import StudentProfile, TeacherProfile
-from courses.models import Course
-
-
-class CourseBasicSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Course
-        fields = ['id', 'title', 'course_type']
 
 
 class StudentBasicSerializer(serializers.ModelSerializer):
@@ -20,7 +13,7 @@ class StudentBasicSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StudentProfile
-        fields = ['id', 'username', 'full_name','profile_picture']
+        fields = ['id', 'student_id', 'username', 'full_name','profile_picture']
     
     def get_full_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
@@ -41,7 +34,7 @@ class TeacherBasicSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'username', 'full_name','profile_picture']
+        fields = ['id', 'teacher_id', 'username', 'full_name','profile_picture']
     
     def get_full_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
@@ -58,21 +51,16 @@ class JobPostCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobPost
         fields = [
-            'title', 'description', 'course', 'subject_text', 'teaching_mode',
-            'budget_amount', 'budget_type', 'duration_value', 'duration_unit',
-            'additional_notes', 'location', 'deadline', 'time_to_study',
+            'title', 'description', 'subject', 'teaching_mode',
+            'budget_amount', 'budget_type',
+            'additional_notes', 'location', 'deadline', 'time_to_study_start', 'time_to_study_end',
             'days_to_study', 'gender'
         ]
     
     def validate(self, data):
-        # # Ensure either course or subject_text is provided
-        # if not data.get('course') and not data.get('subject_text'):
-        #     raise serializers.ValidationError(
-        #         "Either select a course or provide subject text."
-        #     )
-        
+
         # Validate location for physical teaching
-        if data.get('teaching_mode') == 'physical' and not data.get('location'):
+        if data.get('teaching_mode') == 'home' and not data.get('location'):
             raise serializers.ValidationError(
                 "Location is required for physical teaching mode."
             )
@@ -86,9 +74,8 @@ class JobPostCreateSerializer(serializers.ModelSerializer):
         return data
 
     def validate_days_to_study(self, value):
-        # If frontend sends a list: ["monday", "tuesday"]
-        if isinstance(value, list):
-            return ",".join(value)
+        if not isinstance(value, list):
+            raise serializers.ValidationError("days_to_study must be a list")
         return value
 
     def create(self, validated_data):
@@ -103,18 +90,15 @@ class JobPostCreateSerializer(serializers.ModelSerializer):
 
 class JobPostListSerializer(serializers.ModelSerializer):
     student = StudentBasicSerializer(read_only=True)
-    course = CourseBasicSerializer(read_only=True)
-    subject_display = serializers.CharField(read_only=True)
     applications_count = serializers.IntegerField(read_only=True)
     time_ago = serializers.SerializerMethodField()
     
     class Meta:
         model = JobPost
         fields = [
-            'id', 'title', 'description', 'student', 'course', 'subject_display',
-            'teaching_mode', 'budget_amount', 'budget_type', 'duration_value',
-            'duration_unit', 'location', 'status', 'applications_count',
-            'created_at', 'time_ago', 'deadline', 'time_to_study',
+            'id', 'title', 'description', 'student', 'subject',
+            'teaching_mode', 'budget_amount', 'budget_type', 'location', 'status', 'applications_count',
+            'created_at', 'time_ago', 'deadline', 'time_to_study_start', 'time_to_study_end',
             'days_to_study', 'gender'
         ]
     
@@ -131,8 +115,6 @@ class JobPostListSerializer(serializers.ModelSerializer):
    
 class JobPostDetailSerializer(serializers.ModelSerializer):
     student = StudentBasicSerializer(read_only=True)
-    course = CourseBasicSerializer(read_only=True)
-    subject_display = serializers.CharField(read_only=True)
     applications_count = serializers.IntegerField(read_only=True)
     selected_teacher = TeacherBasicSerializer(read_only=True)
     is_owner = serializers.SerializerMethodField()
@@ -142,11 +124,10 @@ class JobPostDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobPost
         fields = [
-            'id', 'title', 'description', 'student', 'course', 'subject_display',
-            'teaching_mode', 'budget_amount', 'budget_type', 'duration_value',
-            'duration_unit', 'additional_notes', 'location', 'status',
+            'id', 'title', 'description', 'student', 'subject',
+            'teaching_mode', 'budget_amount', 'budget_type', 'additional_notes', 'location', 'status',
             'applications_count', 'selected_teacher', 'created_at', 'updated_at',
-            'deadline', 'is_owner', 'can_apply', 'user_application', 'time_to_study',
+            'deadline', 'is_owner', 'can_apply', 'user_application', 'time_to_study_start', 'time_to_study_end',
             'days_to_study', 'gender'
         ]
     
@@ -185,12 +166,7 @@ class JobPostDetailSerializer(serializers.ModelSerializer):
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
-        fields = ['cover_letter', 'proposed_rate']
-    
-    def validate_proposed_rate(self, value):
-        if value is not None and value <= 0:
-            raise serializers.ValidationError("Proposed rate must be positive.")
-        return value
+        fields = []
     
     def create(self, validated_data):
         # Set teacher and job_post from context
@@ -210,18 +186,19 @@ class JobApplicationBasicSerializer(serializers.ModelSerializer):
     teacher = TeacherBasicSerializer(read_only=True)
     final_rate = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     time_ago = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'teacher', 'cover_letter', 'proposed_rate', 'final_rate',
-            'status', 'applied_at', 'time_ago'
+            'id', 'teacher', 'status', 'applied_at', 'time_ago',
+            'is_finalized', 'teacher_finalized', 'student_finalized'
         ]
-    
+        read_only_fields = ['teacher', 'status', 'applied_at', 'is_finalized']
+
     def get_time_ago(self, obj):
         now = timezone.now()
         diff = now - obj.applied_at
-        
+
         if diff.days > 0:
             return f"{diff.days} days ago"
         elif diff.seconds > 3600:
@@ -233,14 +210,19 @@ class JobApplicationBasicSerializer(serializers.ModelSerializer):
 class JobApplicationDetailSerializer(serializers.ModelSerializer):
     teacher = TeacherBasicSerializer(read_only=True)
     job_post = JobPostListSerializer(read_only=True)
-    final_rate = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    
+
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job_post', 'teacher', 'cover_letter', 'proposed_rate',
-            'final_rate', 'status', 'applied_at', 'updated_at'
+            'id', 'job_post', 'teacher', 'status', 'applied_at', 'updated_at',
+            'teacher_finalized_days', 'teacher_finalized_time_start', 'teacher_finalized_time_end',
+            'teacher_finalized_budget', 'teacher_demo_class_time', 'teacher_finalized',
+            'student_finalized_days', 'student_finalized_time_start', 'student_finalized_time_end',
+            'student_finalized_budget', 'student_demo_class_time', 'student_finalized',
+            'finalized_days', 'finalized_time_start', 'finalized_time_end',
+            'finalized_budget', 'demo_class_time', 'is_finalized', 'finalized_at'
         ]
+        read_only_fields = ['job_post', 'teacher']
 
 
 class JobApplicationUpdateSerializer(serializers.ModelSerializer):
@@ -288,7 +270,7 @@ class JobReviewSerializer(serializers.ModelSerializer):
         if request:
             validated_data['reviewer'] = request.user
             # Set reviewed user based on who's reviewing
-            if hasattr(request.user, 'studentprofile'):
+            if hasattr(request.user, 'student_profile'):
                 # Student reviewing teacher
                 validated_data['reviewed'] = job_post.selected_teacher.user
             else:
@@ -301,27 +283,25 @@ class JobReviewSerializer(serializers.ModelSerializer):
 
 # Dashboard serializers for overview
 class MyJobPostSerializer(serializers.ModelSerializer):
-    course = CourseBasicSerializer(read_only=True)
-    subject_display = serializers.CharField(read_only=True)
     applications_count = serializers.IntegerField(read_only=True)
     selected_teacher = TeacherBasicSerializer(read_only=True)
     
     class Meta:
         model = JobPost
         fields = [
-            'id', 'title', 'course', 'subject_display', 'status',
+            'id', 'title', 'subject', 'status',
             'applications_count', 'selected_teacher', 'created_at',
-            'budget_amount', 'budget_type', 'days_to_study',
-            'time_to_study', 'teaching_mode', 'location',
+            'budget_amount', 'budget_type', 'days_to_study', 'curriculum', 'current_class',
+            'time_to_study_start', 'time_to_study_end', 'teaching_mode', 'location',
         ]
 
 
 class MyJobApplicationSerializer(serializers.ModelSerializer):
     job_post = JobPostListSerializer(read_only=True)
-    final_rate = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job_post', 'status', 'final_rate', 'applied_at'
+            'id', 'job_post', 'status', 'applied_at',
+            'is_finalized', 'teacher_finalized', 'student_finalized'
         ]

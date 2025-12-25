@@ -4,6 +4,7 @@ from django.db import models
 from authentication.models import User
 from courses.models import Course,Enrollment,Video,Progress
 from payments.models import Payment
+from group_sessions.models import GroupSessionEnrollment
 
 from django.utils import timezone
 import uuid
@@ -26,6 +27,8 @@ class Meeting(models.Model):
     
     host = models.ForeignKey(User, on_delete=models.CASCADE, related_name='hosted_meetings')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='meetings', null=True, blank=True)
+    group_session = models.OneToOneField('group_sessions.GroupSession', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='meeting_link')
     title = models.CharField(max_length=255)
     password = models.CharField(max_length=20, blank=True)
     meeting_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -153,6 +156,25 @@ class Meeting(models.Model):
                 
                 if not payment_exists:
                     return False, "Please complete payment first to attend this lecture"
+
+        # Add group session logic
+        if self.group_session:
+            enrollment = GroupSessionEnrollment.objects.filter(
+                session=self.group_session,
+                student=user,
+                status='enrolled'
+            ).first()
+
+            if not enrollment:
+                return False, "You are not enrolled in this group session"
+
+            # Check if session is live
+            now = timezone.now()
+            session = self.group_session
+            if not (session.start_time <= now <= session.end_time):
+                return False, "Session is not currently live"
+
+            return True, "Can join"
         
         return True, "Can join"
     

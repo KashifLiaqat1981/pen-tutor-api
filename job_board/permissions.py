@@ -10,18 +10,13 @@ class IsStudentUser(permissions.BasePermission):
     """
     
     def has_permission(self, request, view):
-        print("Studnet is come: ",request.user.role)
-        print("Request: ",request.user.is_authenticated)
         if not request.user.is_authenticated:
             return False
-        print("ok")
-        
+
         return getattr(request.user, "role", "").lower() == "student"
-    print("requuest")
-    
+
     def has_object_permission(self, request, view, obj):
         # For job posts, check if user is the owner
-        print("oobject user: ",obj.student.user)
         if hasattr(obj, 'student'):
             return obj.student.user == request.user
         return False
