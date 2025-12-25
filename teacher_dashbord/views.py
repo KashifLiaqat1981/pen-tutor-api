@@ -7,7 +7,9 @@ from rest_framework.response import Response
 from django.db import transaction
 from authentication.models import TeacherProfile
 from courses.models import Course, Video, Quiz, Assignment, Enrollment, Topic
-from courses.serializers import CourseListSerializer, VideoDetailSerializer, QuizSerializer, AssignmentSerializer 
+from courses.serializers import CourseListSerializer, VideoDetailSerializer, QuizSerializer, AssignmentSerializer
+from group_sessions.models import GroupSession, GroupSessionEnrollment
+from group_sessions.serializers import GroupSessionSerializer
 from .serializers import TeacherCourseSerializer, TeacherVideoSerializer, TeacherQuizSerializer, EnrolledStudentSerializer,LiveClassSerializer, TeacherAssignmentSerializer,TeacherTopicSerializer
 from meetings.models import Meeting
 from django.core.mail import send_mail
@@ -45,47 +47,63 @@ def teacher_dashboard(request):
             'success': False,
             'message': 'Access denied. Teacher privileges required.'
         }, status=status.HTTP_403_FORBIDDEN)
+
+    teacher = request.user
+    teacher_profile = TeacherProfile.objects.get(user=request.user)
+    total_group_sessions = GroupSession.objects.filter(teacher=request.user).count()
+    active_group_sessions = GroupSession.objects.filter(teacher=request.user, status='published').count()
+    total_session_students = GroupSessionEnrollment.objects.filter(session__teacher=request.user).count()
     
-    try:
-        teacher = TeacherProfile.objects.get(user=request.user)
-    except TeacherProfile.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Teacher profile not found'
-        }, status=status.HTTP_404_NOT_FOUND)
-    
-    # Get teacher's courses statistics
-    courses = Course.objects.filter(teacher=teacher)
-    total_courses = courses.count()
-    active_courses = courses.filter(is_active=True).count()
-    total_students = Enrollment.objects.filter(course__teacher=teacher).count()
-    total_videos = Video.objects.filter(course__teacher=teacher).count()
-    total_quizzes = Quiz.objects.filter(course__teacher=teacher).count()
-    total_live_classes = Meeting.objects.filter(course__teacher=teacher, meeting_type='lecture').count()
-    
-    # Recent courses
-    recent_courses = courses.order_by('-created_at')[:5]
+    # # Get teacher's courses statistics
+    # courses = Course.objects.filter(teacher=teacher)
+    # total_courses = courses.count()
+    # active_courses = courses.filter(is_active=True).count()
+    # total_students = Enrollment.objects.filter(course__teacher=teacher).count()
+    # total_videos = Video.objects.filter(course__teacher=teacher).count()
+    # total_quizzes = Quiz.objects.filter(course__teacher=teacher).count()
+    # total_live_classes = Meeting.objects.filter(course__teacher=teacher, meeting_type='lecture').count()
+    #
+    # # Recent courses
+    # recent_courses = courses.order_by('-created_at')[:5]
     member_since = request.user.date_joined.strftime("%d %B %Y")
 
     return Response({
         'success': True,
         'data': {
-            'profile_picture': teacher.profile_picture.url if teacher.profile_picture else None,
-            'teacher_name': teacher.user.get_full_name(),
-            'teacher_bio': teacher.bio,
+            'profile_picture': teacher_profile.profile_picture.url if teacher_profile.profile_picture else None,
+            'teacher_name': teacher_profile.full_name,
             'member_since': member_since,
-            'employee_id': teacher.employee_id,
+            'teacher_id': teacher_profile.teacher_id,
             'statistics': {
-                'total_courses': total_courses,
-                'active_courses': active_courses,
-                'total_students': total_students,
-                'total_videos': total_videos,
-                'total_quizzes': total_quizzes,
-                'total_live_classes': total_live_classes,
+                'total_group_sessions': total_group_sessions,
+                'active_group_sessions': active_group_sessions,
+                'total_session_students': total_session_students,
+            #     'total_courses': total_courses,
+            #     'active_courses': active_courses,
+            #     'total_students': total_students,
+            #     'total_videos': total_videos,
+            #     'total_quizzes': total_quizzes,
+            #     'total_live_classes': total_live_classes,
             },
-            'recent_courses': CourseListSerializer(recent_courses, many=True).data
+            # 'recent_courses': CourseListSerializer(recent_courses, many=True).data
         }
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def teacher_group_sessions(request):
+    """Get teacher's group sessions"""
+    if request.user.role != 'teacher':
+        return Response({'success': False, 'message': 'Access denied'}, status=403)
+
+    sessions = GroupSession.objects.filter(teacher=request.user)
+    serializer = GroupSessionSerializer(sessions, many=True, context={'request': request})
+
+    return Response({
+        'success': True,
+        'data': serializer.data
+    })
 
 #=========================================
 # Teacher's courses
