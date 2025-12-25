@@ -53,8 +53,9 @@ urlpatterns = [
     path('api/feedback/',include('support_feedback.urls')),
     path('api/job-board/', include('job_board.urls')),
     path('api/chat/', include('chat.urls')),
+    path('api/group-sessions/', include('group_sessions.urls')),
     path('api/live-class/',include('individual_live_class.urls')),
-    path('api/chat-box/',include('chate_box.urls')),
+    path('api/chate-box/',include('chate_box.urls')),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
@@ -64,5 +65,4 @@ urlpatterns = [
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
