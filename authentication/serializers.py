@@ -63,37 +63,11 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     tutor_gender = serializers.CharField(required=True)
     learning_mode = serializers.CharField(required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
-
-    # location
     address = serializers.CharField(required=False, allow_null=True)
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-
     # Academic Info/Preferences
     preferred_learning_time = serializers.JSONField(required=False, allow_null=True)
     language_preferences = serializers.JSONField(required=False, allow_null=True)
     member_since = serializers.DateTimeField(source='user.date_joined', read_only=True)
-
-    def validate_latitude(self, value):
-        if not -90 <= value <= 90:
-            raise serializers.ValidationError("Latitude must be between -90 and 90.")
-        return value
-
-    def validate_longitude(self, value):
-        if not -180 <= value <= 180:
-            raise serializers.ValidationError("Longitude must be between -180 and 180.")
-        return value
-
-    def create(self, validated_data):
-        latitude = validated_data.pop("latitude", None)
-        longitude = validated_data.pop("longitude", None)
-
-        if latitude is not None and longitude is not None:
-            validated_data["location"] = (
-                f"https://www.google.com/maps?q={latitude},{longitude}"
-            )
-
-        return super().create(validated_data)
 
     class Meta:
         model = StudentProfile
@@ -105,60 +79,40 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'average_course_rating'
         ]
 
-    # def validate_preferred_learning_time(self, value):
-    #     if not isinstance(value, list):
-    #         raise serializers.ValidationError("Preferred learning time must be a list")
-    #     return value
+    def validate_preferred_learning_time(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Preferred learning time must be a list")
+        return value
 
-    # def validate_language_preferences(self, value):
-    #     if not isinstance(value, list):
-    #         raise serializers.ValidationError("Language preferences must be a list")
-    #     return value
+    def validate_language_preferences(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Language preferences must be a list")
+        return value
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     email = serializers.EmailField(read_only=True)
-    full_name = serializers.CharField(required=True)
-    phone = serializers.CharField(required=True)
-    country = serializers.CharField(required=True)
-    city = serializers.CharField(required=True)
-    address = serializers.CharField(required=True)
-    date_of_birth = serializers.DateField(required=True)
-    gender = serializers.CharField(required=True)
-    identity_no = serializers.CharField(required=True)
+    full_name = serializers.CharField(required=False)
+    phone = serializers.CharField(required=False)
+    country = serializers.CharField(required=False)
+    city = serializers.CharField(required=False)
+    address = serializers.CharField(required=False)
+    date_of_birth = serializers.DateField(required=False)
+    gender = serializers.CharField(required=False)
+    identity_no = serializers.CharField(required=False)
 
-    # location
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-
-    teaching_mode = serializers.CharField(required=True)
-    subjects = serializers.JSONField(required=True)
-    curriculum = serializers.JSONField(required=True)
-    classes = serializers.JSONField(required=True)
-    years_of_experience = serializers.IntegerField(min_value=0, required=True)
-    hourly_rate = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
-    headline = serializers.CharField(required=True)
-
-    def validate_latitude(self, value):
-        if not -90 <= value <= 90:
-            raise serializers.ValidationError("Latitude must be between -90 and 90.")
-        return value
-
-    def validate_longitude(self, value):
-        if not -180 <= value <= 180:
-            raise serializers.ValidationError("Longitude must be between -180 and 180.")
-        return value
-
-    def create(self, validated_data):
-        latitude = validated_data.pop("latitude", None)
-        longitude = validated_data.pop("longitude", None)
-
-        if latitude is not None and longitude is not None:
-            validated_data["location"] = (
-                f"https://www.google.com/maps?q={latitude},{longitude}"
-            )
-
-        return super().create(validated_data)
+    teaching_mode = serializers.CharField(required=False)
+    subjects = serializers.JSONField(required=False)
+    curriculum = serializers.JSONField(required=False)
+    classes = serializers.JSONField(required=False)
+    years_of_experience = serializers.IntegerField(min_value=0, required=False)
+    hourly_rate = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    headline = serializers.CharField(required=False)
+    is_profile_complete = serializers.ReadOnlyField()
+    profile_completion_percentage = serializers.ReadOnlyField()
+    languages_spoken = serializers.JSONField(required=False)
+    availability_schedule = serializers.JSONField(required=False)
+    social_links = serializers.URLField(required=False, allow_blank=True)
 
     class Meta:
         model = TeacherProfile
@@ -172,70 +126,39 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             'profile_completion_percentage'
         ]
 
-    # def validate_education(self, value):
-    #     if not isinstance(value, list):
-    #         raise serializers.ValidationError("Education must be a list")
-    #     for edu in value:
-    #         if not isinstance(edu, dict) or not all(k in edu for k in ['degree', 'institution', 'year']):
-    #             raise serializers.ValidationError("Each education entry must contain degree, institution, and year")
-    #     return value
+    def validate_languages_spoken(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Languages spoken must be a list")
+        return value
 
-    # def validate_languages_spoken(self, value):
-    #     if not isinstance(value, list):
-    #         raise serializers.ValidationError("Languages spoken must be a list")
-    #     return value
+    def validate_availability_schedule(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Availability schedule must be a list")
+        return value
 
-    # def validate_availability_schedule(self, value):
-    #     if not isinstance(value, dict):
-    #         raise serializers.ValidationError("Availability schedule must be a dictionary")
-    #     return value
 
-    # def validate_preferred_teaching_methods(self, value):
-    #     if not isinstance(value, list):
-    #         raise serializers.ValidationError("Preferred teaching methods must be a list")
-    #     return value
+class PublicTeacherSerializer(serializers.ModelSerializer):
+    user_id = serializers.UUIDField(source="user.id", read_only=True)
 
-    # def validate_social_links(self, value):
-    #     if not isinstance(value, dict):
-    #         raise serializers.ValidationError("Social links must be a dictionary")
-    #     return value
+    class Meta:
+        model = TeacherProfile
+        fields = [
+            "user_id", "teacher_id", "headline", "profile_picture", "subjects", "curriculum",
+            "classes", "years_of_experience", "hourly_rate", "currency", "languages_spoken",
+            'country', 'city', 'teaching_mode', 'availability_schedule', 'education'
+        ]
 
 
 class StudentQuerySerializer(serializers.ModelSerializer):
     """
     Serializer for Student Query Form
     """
-    # location
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, write_only=True, required=False)
-
     class Meta:
         model = StudentQuery
         fields = [
             'id', 'full_name', 'email', 'phone', 'tutor_gender', 'city', 'country', 'address', 'curriculum',
-            'learning_mode', 'current_class', 'subjects', 'special_requirements', 'location', 'latitude',
-            'longitude', 'created_at']
+            'learning_mode', 'current_class', 'subjects', 'special_requirements', 'location', 'created_at']
         read_only_fields = ['id', 'created_at']
-
-    def validate_latitude(self, value):
-        if not -90 <= value <= 90:
-            raise serializers.ValidationError("Latitude must be between -90 and 90.")
-        return value
-
-    def validate_longitude(self, value):
-        if not -180 <= value <= 180:
-            raise serializers.ValidationError("Longitude must be between -180 and 180.")
-        return value
-
-    def create(self, validated_data):
-        latitude = validated_data.pop("latitude", None)
-        longitude = validated_data.pop("longitude", None)
-
-        if latitude is not None and longitude is not None:
-            validated_data["location"] = (
-                f"https://www.google.com/maps?q={latitude},{longitude}"
-            )
-        return super().create(validated_data)
 
     def validate_email(self, value):
         """Validate email format"""

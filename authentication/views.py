@@ -19,6 +19,7 @@ from .serializers import (
     RoleUpdateSerializer,
     StudentProfileSerializer,
     TeacherProfileSerializer,
+    PublicTeacherSerializer,
     StudentQuerySerializer,
     StudentQueryListSerializer
 )
@@ -427,6 +428,7 @@ class ProfileUpdateView(APIView):
             # If teacher, mark status as pending
             if request.user.role == 'teacher':
                 profile.status = 'pending'
+                profile.save(update_fields=['status'])
 
             serializer.save()
             log_activity(
@@ -576,6 +578,47 @@ class CreateTeacherProfileView(APIView):
                 }, status=201)
 
             return Response({"success": False, "errors": serializer.errors}, status=400)
+
+
+class TeacherProfileDetailView(APIView):
+    permission_classes = [AllowAny]
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('user_id', openapi.IN_PATH, type=openapi.TYPE_STRING, description='Teacher User ID')
+        ],
+        responses={200: PublicTeacherSerializer, 404: 'Teacher not found'}
+    )
+    def get(self, request, user_id):
+        try:
+            teacher_profile = TeacherProfile.objects.get(user__id=user_id)
+            serializer = PublicTeacherSerializer(teacher_profile)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        except TeacherProfile.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Teacher profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class PublicTeacherListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        teachers = TeacherProfile.objects.filter(
+            status="approved",
+            is_active=True
+        )
+
+        serializer = PublicTeacherSerializer(teachers, many=True)
+        return Response({
+            "success": True,
+            "count": teachers.count(),
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
 
 # ==========================
 # Student query form
