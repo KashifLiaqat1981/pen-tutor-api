@@ -26,22 +26,17 @@ class TeacherSerializer(serializers.ModelSerializer):
    
     profile_picture = serializers.SerializerMethodField()
     email = serializers.EmailField(read_only=True)
-    expertise_areas = serializers.JSONField(required=True)
-    education = serializers.JSONField(required=True)
-    languages_spoken = serializers.JSONField(required=True)
-    availability_schedule = serializers.JSONField(required=True)
-    preferred_teaching_methods = serializers.JSONField(required=True)
-    course_categories = serializers.JSONField(required=True)
-    total_courses = serializers.SerializerMethodField()
-    total_students = serializers.SerializerMethodField()
-    feedbacks = TeacherFeedbackSerializer(many=True, read_only=True)
-    courses_created = CourseSerializer(many=True, read_only=True)
     
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'username', 'first_name', 'last_name','age', 'bio', 'gender','date_of_birth','phone','address','city','country','headline','expertise_level','years_of_experience','employment_type','department',
-                  'hourly_rate','total_courses','total_students','average_rating','teaching_style','courses_created','profile_picture','email','expertise_areas','education'
-                  ,'languages_spoken','availability_schedule','preferred_teaching_methods','course_categories','feedbacks','created_at']
+        read_only_fields = [
+            'user', 'email', 'teacher_id',
+            'total_courses', 'total_students',
+            'average_rating', 'total_course_hours',
+            'total_students_helped', 'response_rate',
+            'average_response_time', 'is_profile_complete',
+            'profile_completion_percentage'
+        ]
     
     def get_profile_picture(self, obj):
         if obj.profile_picture:
