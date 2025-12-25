@@ -56,6 +56,7 @@ AUTH_USER_MODEL = 'authentication.User'
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -84,15 +85,16 @@ INSTALLED_APPS = [
     'individual_live_class',
     'drf_yasg',
     'chate_box',
-    'activity'
+    'activity',
+    'group_sessions',
      
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -118,7 +120,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'lms.wsgi.application'
+ASGI_APPLICATION = 'lms.asgi.application'
 
+# Redis channel layer
+UPSTASH_REDIS_URL = 'rediss://default:AbddAAIncDFhZWU5YTcxNWI5MmQ0OWI1ODdhMmIwZjEzZDVhMzk3NXAxNDY5NDE@flexible-werewolf-46941.upstash.io:6379'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [UPSTASH_REDIS_URL],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -197,7 +211,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # Email automation settings
 DEFAULT_FROM_EMAIL = 'noreply@lms.com'
 SITE_NAME = 'LMS Platform'
-SITE_URL = 'http://localhost:8000'
+SITE_URL = 'http://www.pentutor.com'
 
 # Job Board specific settings
 JOB_BOARD_SETTINGS = {
@@ -264,11 +278,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
-}
 
 
 # =====
@@ -284,4 +293,5 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
