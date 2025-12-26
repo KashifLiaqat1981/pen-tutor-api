@@ -130,14 +130,14 @@ class JobApplicationAdmin(admin.ModelAdmin):
         return obj.job_post.student.user.get_full_name() or obj.job_post.student.user.username
     student_name.short_description = 'Student'
     student_name.admin_order_field = 'job_post__student__user__username'
-    
+
     def job_link(self, obj):
         if obj.job_post:
             url = reverse('admin:job_board_jobpost_change', args=[obj.job_post.pk])
             return format_html('<a href="{}" target="_blank">View Job Post</a>', url)
         return '-'
     job_link.short_description = 'Job Post'
-    
+
     def teacher_profile_link(self, obj):
         if obj.teacher:
             url = reverse('admin:authentication_teacherprofile_change', args=[obj.teacher.pk])

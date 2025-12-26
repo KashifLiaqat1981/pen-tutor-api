@@ -4,6 +4,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from .models import JobPost, JobApplication, JobReview
 from authentication.models import StudentProfile, TeacherProfile
+import re
 
 
 class StudentBasicSerializer(serializers.ModelSerializer):
@@ -96,7 +97,7 @@ class JobPostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobPost
         fields = [
-            'id', 'title', 'description', 'student', 'subject',
+            'id', 'title', 'description', 'student', 'subject', 'current_class', 'curriculum',
             'teaching_mode', 'budget_amount', 'budget_type', 'location', 'status', 'applications_count',
             'created_at', 'time_ago', 'deadline', 'time_to_study_start', 'time_to_study_end',
             'days_to_study', 'gender'
@@ -136,19 +137,55 @@ class JobPostDetailSerializer(serializers.ModelSerializer):
         if request and hasattr(request.user, 'student_profile'):
             return obj.student == request.user.student_profile
         return False
-    
+
     def get_can_apply(self, obj):
-        request = self.context.get('request')
-        if not request or not hasattr(request.user, 'teacher_profile'):
+        request = self.context.get("request")
+
+        # 1. Must have request & be logged in
+        if not request or not request.user.is_authenticated:
             return False
-        
-        # Check if job is open and teacher hasn't applied yet
+
+        user = request.user
+
+        # 2. Must be a teacher
+        teacher = getattr(user, "teacher_profile", None)
+        if not teacher:
+            return False
+
+        # 3. Job must be open
         if obj.status != 'open':
             return False
-        
-        return not obj.applications.filter(
-            teacher=request.user.teacher_profile
+
+        # 4. Student who created job cannot apply
+        if obj.student.user_id == user.id:
+            return False
+
+        # 5. Teacher must not have already applied
+        already_applied = obj.applications.filter(
+            teacher_id=teacher.id
         ).exists()
+
+        return not already_applied
+
+    def get_location(self, obj):
+        """
+        Adds +100 to longitude in Google Maps URL
+        """
+        if not obj.location:
+            return obj.location
+
+        # Match latitude,longitude in URL
+        match = re.search(r'([-+]?\d*\.\d+|\d+),\s*([-+]?\d*\.\d+|\d+)', obj.location)
+
+        if not match:
+            return obj.location  # fallback if format is unexpected
+
+        lat = float(match.group(1))
+        lng = float(match.group(2)) + 0.0005  # 👈 add +100 to longitude
+
+        # Replace only the coordinates part
+        new_coords = f"{lat},{lng}"
+        return re.sub(r'([-+]?\d*\.\d+|\d+),\s*([-+]?\d*\.\d+|\d+)', new_coords, obj.location, count=1)
     
     def get_user_application(self, obj):
         request = self.context.get('request')
@@ -184,7 +221,6 @@ class JobApplicationCreateSerializer(serializers.ModelSerializer):
 
 class JobApplicationBasicSerializer(serializers.ModelSerializer):
     teacher = TeacherBasicSerializer(read_only=True)
-    final_rate = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     time_ago = serializers.SerializerMethodField()
 
     class Meta:
