@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import JobApplicationView
 
 urlpatterns = [
     # Chat rooms
@@ -15,6 +16,7 @@ urlpatterns = [
 
     # Job applications
     path('job-applications/', views.job_applications_list),
-    path('job-applications/apply/', views.apply_for_job),
+    path('job-applications/apply/', JobApplicationView.as_view()),
+    path('job/can_chat/<int:job_post_id>/', JobApplicationView.as_view()),
     path('job-applications/<int:application_id>/finalize/', views.finalize_agreement),
 ]

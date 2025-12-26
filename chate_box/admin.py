@@ -31,15 +31,14 @@ class ChatRoomAdmin(admin.ModelAdmin):
     participant_count.short_description = 'Participants'
 
     def job_link(self, obj):
-        if obj.job_id:
-            try:
-                app = JobApplication.objects.get(job_post_id=obj.job_id)
-                url = reverse('admin:job_board_jobapplication_change', args=[app.id])
-                return format_html('<a href="{}" target="_blank">View Application</a>', url)
-            except JobApplication.DoesNotExist:
-                return "-"
-        return "-"
-    job_link.short_description = 'Job Application'
+        applications = JobApplication.objects.filter(job_post_id=obj.job_id)
+        links = []
+        for app in applications:
+            url = reverse("admin:job_board_jobapplication_change", args=[app.id])
+            links.append(f'<a href="{url}">{app.teacher.user.get_full_name()}</a>')
+        return format_html(", ".join(links))
+
+    job_link.short_description = "Applications"
 
 # ---------------- Message Admin ----------------
 

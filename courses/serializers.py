@@ -29,6 +29,7 @@ class TeacherSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TeacherProfile
+        fields = '__all__'
         read_only_fields = [
             'user', 'email', 'teacher_id',
             'total_courses', 'total_students',

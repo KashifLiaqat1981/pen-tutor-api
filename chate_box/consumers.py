@@ -1,4 +1,4 @@
-# consumers.py - Fixed version with proper UUID handling
+# consumers.py
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
@@ -97,14 +97,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'id': str(msg_data['id']),  # Ensure ID is string
                 'room': self.room_id_str,  # Use string room ID
                 'sender': {
-                    'id': str(msg_data['sender_id']),
+                    'id': str(self.user.id),
                     'username': msg_data['sender_username'],
-                    'first_name': msg_data['sender_first_name'] or '',
-                    'last_name': msg_data['sender_last_name'] or '',
-                    'full_name': f"{msg_data['sender_first_name'] or ''} {msg_data['sender_last_name'] or ''}".strip() or
-                                 msg_data['sender_username'],
-                    'role': msg_data['sender_role'],
-                    'profile_picture': None
+                    'role': self.user.role,
+                    'teacher_id': str(getattr(self.user.teacher_profile, 'teacher_id', None)),
+                    'student_id': str(getattr(self.user.student_profile, 'student_id', None)),
                 },
                 'message_type': msg_data['message_type'],
                 'content': msg_data['content'],
@@ -112,8 +109,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'status': msg_data['status'],
                 'has_forbidden_content': msg_data['has_forbidden_content'],
                 'blocked_content_type': msg_data['blocked_content_type'],
-                'created_at': msg_data['created_at'].isoformat() if msg_data['created_at'] else None,
-                'updated_at': msg_data['updated_at'].isoformat() if msg_data['updated_at'] else None,
                 'read_by_users': [],
                 'is_read_by_me': False
             }
@@ -172,16 +167,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         with transaction.atomic():
             user = User.objects.get(id=user_id)
-            room = ChatRoom.objects.get(id=room_id)
+            room = ChatRoom.objects.get(id=self.room_id)
 
             # Determine role without triggering related queries
-            teacher_id = getattr(user, 'teacher_profile_id', None)
-            student_id = getattr(user, 'student_profile_id', None)
-
-            if teacher_id:
-                role = 'teacher'
-            elif student_id:
-                role = 'student'
+            role = getattr(user, "role", "unknown")
 
             msg = Message.objects.create(
                 room=room,
