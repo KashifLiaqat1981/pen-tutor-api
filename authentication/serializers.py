@@ -145,7 +145,7 @@ class PublicTeacherSerializer(serializers.ModelSerializer):
         fields = [
             "user_id", "teacher_id", "headline", "profile_picture", "subjects", "curriculum",
             "classes", "years_of_experience", "hourly_rate", "currency", "languages_spoken",
-            'country', 'city', 'teaching_mode', 'availability_schedule', 'education'
+            'country', 'city', 'teaching_mode', 'availability_schedule', 'education', 'gender'
         ]
 
 
