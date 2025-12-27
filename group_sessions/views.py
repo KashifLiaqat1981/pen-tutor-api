@@ -199,14 +199,11 @@ def cancel_group_session(request, id):
 
 # ============ ENROLLMENTS ============
 
+# In views.py, update EnrollInSessionView.post()
+
 class EnrollInSessionView(APIView):
-    """Enroll in a group session"""
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CreateEnrollmentSerializer,
-        responses={201: EnrollmentSerializer}
-    )
     def post(self, request):
         serializer = CreateEnrollmentSerializer(
             data=request.data,
@@ -215,9 +212,10 @@ class EnrollInSessionView(APIView):
 
         if serializer.is_valid():
             with transaction.atomic():
-                enrollment = serializer.save()
-                session = enrollment.session
+                session = serializer.validated_data['session']
 
+                # Create payment FIRST for paid sessions
+                payment = None
                 if not session.is_free and session.price > 0:
                     payment = Payment.objects.create(
                         user=request.user,
@@ -227,9 +225,16 @@ class EnrollInSessionView(APIView):
                         group_session=session,
                         status='pending'
                     )
-                    enrollment.payment = payment
-                    enrollment.save()
 
+                # Now create enrollment with payment reference
+                enrollment = GroupSessionEnrollment.objects.create(
+                    session=session,
+                    student=request.user,
+                    status='pending' if session.requires_approval else 'enrolled',
+                    payment=payment if not session.is_free else None
+                )
+
+                if payment:
                     return Response({
                         'success': True,
                         'message': 'Enrollment created. Payment required.',

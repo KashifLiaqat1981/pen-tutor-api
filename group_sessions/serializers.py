@@ -13,6 +13,10 @@ class GroupSessionSerializer(serializers.ModelSerializer):
     """Serializer for Group Session details"""
     teacher = serializers.SerializerMethodField()
     teacher_id = serializers.SerializerMethodField()
+    subjects = serializers.SerializerMethodField()
+    curriculum = serializers.SerializerMethodField()
+    classes = serializers.SerializerMethodField()
+    years_of_experience = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
     meeting = MeetingSerializer(read_only=True)
     is_upcoming = serializers.BooleanField(read_only=True)
@@ -26,7 +30,8 @@ class GroupSessionSerializer(serializers.ModelSerializer):
         model = GroupSession
         fields = [
             'id', 'title', 'description', 'short_description', 'profile_picture',
-            'teacher', 'teacher_id', 'subject', 'tags', 'starting_date', 'days',
+            'teacher', 'teacher_id', 'subjects', 'curriculum', 'classes', 'years_of_experience',
+            'subject', 'tags', 'starting_date', 'days',
             'start_time', 'class_duration', 'session_duration',
             'max_students', 'min_students', 'current_enrollments',
             'price', 'is_free', 'currency',
@@ -52,6 +57,34 @@ class GroupSessionSerializer(serializers.ModelSerializer):
         """Return teacher_id from TeacherProfile if it exists"""
         try:
             return obj.teacher.teacher_profile.teacher_id
+        except TeacherProfile.DoesNotExist:
+            return None
+
+    def get_subjects(self, obj):
+        """Return teacher_id from TeacherProfile if it exists"""
+        try:
+            return obj.teacher.teacher_profile.subjects
+        except TeacherProfile.DoesNotExist:
+            return None
+
+    def get_curriculum(self, obj):
+        """Return teacher_id from TeacherProfile if it exists"""
+        try:
+            return obj.teacher.teacher_profile.curriculum
+        except TeacherProfile.DoesNotExist:
+            return None
+
+    def get_classes(self, obj):
+        """Return teacher_id from TeacherProfile if it exists"""
+        try:
+            return obj.teacher.teacher_profile.classes
+        except TeacherProfile.DoesNotExist:
+            return None
+
+    def get_years_of_experience(self, obj):
+        """Return teacher_id from TeacherProfile if it exists"""
+        try:
+            return obj.teacher.teacher_profile.years_of_experience
         except TeacherProfile.DoesNotExist:
             return None
 

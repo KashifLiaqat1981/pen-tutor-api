@@ -3,7 +3,7 @@
 from rest_framework import generics, status, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db import transaction
@@ -77,7 +77,7 @@ class JobPostDetailView(generics.RetrieveUpdateAPIView):
         'student__user', 'selected_teacher__user'
     ).prefetch_related('applications__teacher__user')
     serializer_class = JobPostDetailSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:

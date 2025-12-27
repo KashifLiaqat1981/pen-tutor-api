@@ -1,4 +1,5 @@
 # views.py
+from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -159,35 +160,102 @@ def job_applications_list(request):
     return Response(serializer.data)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def apply_for_job(request):
-    if not hasattr(request.user, 'teacher_profile'):
-        raise PermissionDenied("Only teachers can apply for jobs")
-    job_post_id = request.data.get('job_post')
-    job_post = get_object_or_404(JobPost, id=job_post_id)
+class JobApplicationView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    teacher_profile = request.user.teacher_profile
-    existing_application = JobApplication.objects.filter(job_post=job_post, teacher=teacher_profile).first()
-    if existing_application:
-        return Response({'error': 'You have already applied for this job'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        """Apply for a job OR ensure 1:1 chat room exists."""
+        job_post_id = request.data.get('job_post')
+        job_post = get_object_or_404(JobPost, id=job_post_id)
+        user = request.user
 
-    application = JobApplication.objects.create(job_post=job_post, teacher=teacher_profile)
+        # -------------------------
+        # Resolve application
+        # -------------------------
+        if user.role == 'teacher':
+            teacher_profile = user.teacher_profile
+            application, created = JobApplication.objects.get_or_create(
+                job_post=job_post,
+                teacher=teacher_profile
+            )
 
-    # Create 1:1 chat room
-    room = ChatRoom.objects.create(
-        name=f"Application: {job_post.title}",
-        room_type='job',
-        description=f"Chat for job application #{application.id}",
-        job_id=job_post.id,
-        created_by=request.user
-    )
-    room.participants.add(request.user, job_post.student.user)
-    application.chat_room = room
-    application.save()
+        elif user.role == 'student':
+            student_profile = user.student_profile
+            application = JobApplication.objects.filter(
+                job_post=job_post,
+                job_post__student=student_profile
+            ).first()
 
-    serializer = JobApplicationChatSerializer(application, context={'request': request})
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+            if not application:
+                return Response(
+                    {'error': 'No application exists for this job.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            return Response(
+                {'error': 'Only teachers or students can use this endpoint.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # -------------------------
+        # Ensure chat room exists
+        # -------------------------
+        if not application.chat_room:
+            room = ChatRoom.objects.create(
+                name=f"Application: {job_post.title}",
+                room_type='job',
+                description=f"Chat for job application #{application.id}",
+                job_id=job_post.id,
+                created_by=user
+            )
+
+            # Correct participants
+            room.participants.add(
+                application.teacher.user,
+                job_post.student.user
+            )
+
+            application.chat_room = room
+            application.save()
+
+        serializer = JobApplicationChatSerializer(application, context={'request': request})
+        data = serializer.data
+        data['can_chat'] = True
+
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, job_post_id):
+        """Retrieve application + chat availability."""
+        user = request.user
+
+        if user.role == 'teacher':
+            application = JobApplication.objects.filter(
+                job_post_id=job_post_id,
+                teacher=user.teacher_profile
+            ).first()
+
+        elif user.role == 'student':
+            application = JobApplication.objects.filter(
+                job_post_id=job_post_id,
+                job_post__student=user.student_profile
+            ).first()
+        else:
+            return Response(
+                {'error': 'Only teachers or students can use this endpoint.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not application:
+            return Response(
+                {'error': 'No application found for this job.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = JobApplicationChatSerializer(application, context={'request': request})
+        data = serializer.data
+        data['can_chat'] = bool(application.chat_room)
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
