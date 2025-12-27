@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from .models import (
-    LiveClassSchedule, LiveClassSubscription, LiveClassSession, 
+    LiveClassSchedule, LiveClassInvitation, LiveClassSubscription, LiveClassSession,
     ClassReschedule, LiveClassPayment
 )
 from authentication.models import StudentProfile, TeacherProfile
@@ -107,6 +107,66 @@ class LiveClassSessionSerializer(serializers.ModelSerializer):
         read_only_fields = ('session_id', 'created_at', 'updated_at')
 
 
+class LiveClassInvitationSerializer(serializers.ModelSerializer):
+    schedule_id = serializers.UUIDField(source='schedule.schedule_id', read_only=True)
+    teacher_id = serializers.CharField(source='teacher.id', read_only=True)
+    student_id = serializers.CharField(source='student.id', read_only=True)
+    subject = serializers.CharField(source='schedule.subject', read_only=True)
+    class_duration = serializers.IntegerField(source='schedule.class_duration', read_only=True)
+    class_days = serializers.JSONField(source='schedule.class_days', read_only=True)
+    class_times = serializers.JSONField(source='schedule.class_times', read_only=True)
+    start_date = serializers.DateField(source='schedule.start_date', read_only=True)
+    end_date = serializers.DateField(source='schedule.end_date', read_only=True)
+
+    class Meta:
+        model = LiveClassInvitation
+        fields = [
+            'invitation_id',
+            'status',
+            'responded_at',
+            'created_at',
+            'schedule_id',
+            'teacher_id',
+            'student_id',
+            'subject',
+            'first_class_datetime',
+            'budget',
+            'is_demo_free',
+            'class_duration',
+            'class_days',
+            'class_times',
+            'start_date',
+            'end_date',
+        ]
+        read_only_fields = fields
+
+
+class InvitationRespondSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=['accept', 'reject'])
+
+
+class PortalLiveClassSessionSerializer(serializers.ModelSerializer):
+    schedule_id = serializers.UUIDField(source='schedule.schedule_id', read_only=True)
+    teacher_id = serializers.CharField(source='schedule.teacher.id', read_only=True)
+    student_id = serializers.CharField(source='schedule.student.id', read_only=True)
+    subject = serializers.CharField(source='schedule.subject', read_only=True)
+
+    class Meta:
+        model = LiveClassSession
+        fields = [
+            'session_id',
+            'schedule_id',
+            'teacher_id',
+            'student_id',
+            'subject',
+            'scheduled_datetime',
+            'duration',
+            'status',
+            'is_demo',
+        ]
+        read_only_fields = fields
+
+
 class ClassRescheduleSerializer(serializers.ModelSerializer):
     session_subject = serializers.CharField(source='session.schedule.subject', read_only=True)
     requested_by_name = serializers.CharField(source='requested_by.username', read_only=True)
@@ -145,8 +205,7 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
 
 
 class TeacherScheduleListSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.full_name', read_only=True)
-    student_email = serializers.CharField(source='student.user.email', read_only=True)
+    student_id = serializers.CharField(source='student.id', read_only=True)
     student_profile_picture = serializers.SerializerMethodField()
     active_subscription = serializers.SerializerMethodField()
     next_class = serializers.SerializerMethodField()
@@ -154,7 +213,7 @@ class TeacherScheduleListSerializer(serializers.ModelSerializer):
     class Meta:
         model = LiveClassSchedule
         fields = [
-            'schedule_id', 'student_name', 'student_email','student_profile_picture', 'subject',
+            'schedule_id', 'student_id', 'student_profile_picture', 'subject',
             'classes_per_week', 'class_days', 'class_times', 'class_duration',
             'weekly_payment', 'monthly_payment', 'is_active', 'demo_completed',
             'active_subscription', 'next_class', 'created_at'
@@ -180,8 +239,7 @@ class TeacherScheduleListSerializer(serializers.ModelSerializer):
     
 
 class StudentScheduleListSerializer(serializers.ModelSerializer):
-    teacher_name = serializers.CharField(source='teacher.full_name', read_only=True)
-    teacher_email = serializers.CharField(source='teacher.user.email', read_only=True)
+    teacher_id = serializers.CharField(source='teacher.id', read_only=True)
     active_subscription = serializers.SerializerMethodField()
     next_class = serializers.SerializerMethodField()
     can_join = serializers.SerializerMethodField()
@@ -189,7 +247,7 @@ class StudentScheduleListSerializer(serializers.ModelSerializer):
     class Meta:
         model = LiveClassSchedule
         fields = [
-            'schedule_id', 'teacher_name', 'teacher_email', 'subject',
+            'schedule_id', 'teacher_id', 'subject',
             'classes_per_week', 'class_days', 'class_times', 'class_duration',
             'weekly_payment', 'monthly_payment', 'demo_completed',
             'active_subscription', 'next_class', 'can_join', 'created_at'

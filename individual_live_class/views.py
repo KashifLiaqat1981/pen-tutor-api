@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from .models import (
     LiveClassSchedule, LiveClassSubscription, LiveClassSession,
-    ClassReschedule, LiveClassPayment
+    LiveClassInvitation, ClassReschedule, LiveClassPayment
 )
 import uuid
 from .serializers import (
@@ -19,13 +19,54 @@ from .serializers import (
     LiveClassSubscriptionSerializer, LiveClassSessionSerializer,
     ClassRescheduleSerializer, RescheduleRequestSerializer,
     LiveClassPaymentSerializer, SubscriptionCreateSerializer,
-    TeacherScheduleListSerializer, StudentScheduleListSerializer,MeetingRescheduleSerializer
+    TeacherScheduleListSerializer, StudentScheduleListSerializer, MeetingRescheduleSerializer,
+    LiveClassInvitationSerializer, InvitationRespondSerializer, PortalLiveClassSessionSerializer
 )
 from authentication.models import StudentProfile, TeacherProfile,User
 from meetings.models import Meeting
 from notifications.models import Notification
 from rest_framework.permissions import IsAuthenticated
 from job_board.models import JobApplication
+from django.db.models import Q
+
+
+def _student_is_available(student_profile, candidate_dt, duration_minutes):
+    """Basic overlap check against existing live class sessions for the student."""
+    start = candidate_dt
+    end = candidate_dt + timedelta(minutes=duration_minutes)
+
+    existing = LiveClassSession.objects.filter(
+        schedule__student=student_profile,
+        status__in=['scheduled', 'ongoing', 'rescheduled'],
+        scheduled_datetime__lt=end,
+        scheduled_datetime__gt=start - timedelta(minutes=duration_minutes)
+    ).select_related('schedule')
+
+    for session in existing:
+        s_start = session.scheduled_datetime
+        s_end = session.scheduled_datetime + timedelta(minutes=session.duration)
+        if start < s_end and end > s_start:
+            return False
+    return True
+
+
+def _validate_student_availability_for_schedule(student_profile, class_days, class_times, start_date, end_date, duration_minutes):
+    """Validate availability for the first few occurrences of the weekly schedule."""
+    probe_start = start_date
+    probe_end = min(end_date, start_date + timedelta(days=14)) if end_date else (start_date + timedelta(days=14))
+    cursor = probe_start
+    while cursor <= probe_end:
+        day_key = cursor.strftime('%A').lower()
+        if day_key in class_days:
+            time_str = class_times.get(day_key)
+            if time_str:
+                naive_dt = datetime.combine(cursor, datetime.strptime(time_str, '%H:%M').time())
+                candidate = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+                if not _student_is_available(student_profile, candidate, duration_minutes):
+                    raise ValidationError({
+                        'detail': f"Student is not available at {candidate.strftime('%Y-%m-%d %H:%M')}"
+                    })
+        cursor += timedelta(days=1)
 
 
 # Teacher Views
@@ -49,70 +90,74 @@ class CreateLiveClassScheduleView(generics.CreateAPIView):
     serializer_class = LiveClassScheduleCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    try:
-        def perform_create(self, serializer):
-            teacher_profile = get_object_or_404(TeacherProfile, user=self.request.user)
-            # Check if schedule already exists
-            print("Student:", serializer.validated_data.get("student"))
-            # Convert student UUID string to UUID object for filtering
-            student_obj = serializer.validated_data["student"]
-            print("studnet obj: ",student_obj)
-            # Validate student exists and has user relationship
-            if not student_obj or not hasattr(student_obj, 'user'):
-                raise ValidationError({"student": "Invalid student profile"})
-            
-            try:
-                existing_schedule = LiveClassSchedule.objects.filter(
-                    teacher=teacher_profile,
-                    student=student_obj,
-                    subject=serializer.validated_data['subject']
-                ).first()
-                print("exsiting schedule: ",existing_schedule)
-            
+    def perform_create(self, serializer):
+        teacher_profile = get_object_or_404(TeacherProfile, user=self.request.user)
+        student_obj = serializer.validated_data["student"]
 
-                if existing_schedule:
-                    raise ValidationError(
-                        {"detail": "A schedule already exists for this teacher, student, and subject."}
-                    )
-            except Exception as e:
-                print("Ecept error",e)
-                raise
-        
-            # try:
-            #     student_obj = StudentProfile.objects.get(id=student_uuid)
-            # except StudentProfile.DoesNotExist:
-            #     raise ValidationError({"student": "Student not found"})
+        if not student_obj or not hasattr(student_obj, 'user'):
+            raise ValidationError({"student": "Invalid student profile"})
+
+        existing_schedule = LiveClassSchedule.objects.filter(
+            teacher=teacher_profile,
+            student=student_obj,
+            subject=serializer.validated_data['subject']
+        ).first()
+        if existing_schedule:
+            raise ValidationError({"detail": "A schedule already exists for this teacher, student, and subject."})
+
+        _validate_student_availability_for_schedule(
+            student_profile=student_obj,
+            class_days=serializer.validated_data['class_days'],
+            class_times=serializer.validated_data['class_times'],
+            start_date=serializer.validated_data['start_date'],
+            end_date=serializer.validated_data.get('end_date'),
+            duration_minutes=serializer.validated_data.get('class_duration') or 60,
+        )
+
+        with transaction.atomic():
             schedule = serializer.save(teacher=teacher_profile)
-            print("save")
-            
-            # Create demo meeting
-            demo_meeting = schedule.create_demo_class()
-            if demo_meeting:
-                # Create demo session
-                LiveClassSession.objects.create(
-                    schedule=schedule,
-                    meeting=demo_meeting,
-                    scheduled_datetime=demo_meeting.scheduled_time,
-                    duration=schedule.class_duration,
-                    is_demo=True
+
+            next_class = schedule.get_next_class_date()
+            if next_class and timezone.is_naive(next_class):
+                next_class = timezone.make_aware(next_class)
+
+            invitation = LiveClassInvitation.objects.create(
+                schedule=schedule,
+                teacher=teacher_profile,
+                student=student_obj,
+                first_class_datetime=next_class,
+                budget=schedule.weekly_payment,
+                is_demo_free=True,
+            )
+
+            Notification.objects.create(
+                recipient=student_obj.user,
+                sender=self.request.user,
+                notification_type='live_class_scheduled',
+                title='Individual Live Class Invitation',
+                message=(
+                    f"Teacher ID: {teacher_profile.id}. "
+                    f"Date/Time: {(next_class.strftime('%Y-%m-%d %H:%M') if next_class else 'TBD')}. "
+                    f"Budget: {invitation.budget}. "
+                    f"Demo class is FREE; after demo, paid classes start."
                 )
-            
-            # admin_user = User.objects.filter(role__in="admin").first()
-            # print("Admin user:", admin_user)
-            # print("Sender:", self.request.user)
-            # if admin_user:
-            #         Notification.objects.create(
-            #             recipient=admin_user,   # pass object, not raw id
-            #             sender=self.request.user,
-            #             notification_type='general',
-            #             title='New Live Class Schedule Created',
-            #             message=f'{teacher_profile.full_name} created a schedule for {schedule.subject} with {schedule.student.full_name}'
-            #         )
-            # else:
-            #     print("⚠️ No admin user found, skipping notification")
-    except Exception as e:
-        print(f"Error creating Sheduale : {e}")
-        raise
+            )
+
+            admin_user = User.objects.filter(role='admin').first()
+            if admin_user:
+                Notification.objects.create(
+                    recipient=admin_user,
+                    sender=self.request.user,
+                    notification_type='general',
+                    title='New Individual Live Class Invitation',
+                    message=(
+                        f"Teacher: {teacher_profile.full_name} (ID: {teacher_profile.id}) "
+                        f"Student: {student_obj.full_name} (ID: {student_obj.id})"
+                    )
+                )
+
+        return schedule
+
 
 class UpdateLiveClassScheduleView(generics.UpdateAPIView):
     """Teacher updates their live class schedule"""
@@ -124,6 +169,7 @@ class UpdateLiveClassScheduleView(generics.UpdateAPIView):
         teacher_profile = get_object_or_404(TeacherProfile, user=self.request.user)
         return LiveClassSchedule.objects.filter(teacher=teacher_profile)
 
+
 class RescheduleMeetingView(generics.UpdateAPIView):
     """Teacher updates (reschedules) a single meeting"""
     serializer_class = MeetingRescheduleSerializer
@@ -133,6 +179,8 @@ class RescheduleMeetingView(generics.UpdateAPIView):
     def get_queryset(self):
         # Sirf apne meetings update kar sake
         return Meeting.objects.filter(host=self.request.user)
+
+
 # Student Views
 class StudentScheduleListView(generics.ListAPIView):
     """List all schedules for a student"""
@@ -141,7 +189,7 @@ class StudentScheduleListView(generics.ListAPIView):
     
     def get_queryset(self):
         student_profile = get_object_or_404(StudentProfile, user=self.request.user)
-        return LiveClassSchedule.objects.filter(student=student_profile)
+        return LiveClassSchedule.objects.filter(student=student_profile,is_active=True,status='accepted')
 
 
 class StudentSubscriptionListView(generics.ListAPIView):
@@ -179,22 +227,136 @@ class CreateSubscriptionView(generics.CreateAPIView):
 # Session Management Views
 class SessionListView(generics.ListAPIView):
     """List sessions - filtered by user role"""
-    serializer_class = LiveClassSessionSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if getattr(self.request.user, 'role', None) == 'admin':
+            return LiveClassSessionSerializer
+        return PortalLiveClassSessionSerializer
     
     def get_queryset(self):
         user = self.request.user
-        
+
         if hasattr(user, 'teacher_profile'):
             return LiveClassSession.objects.filter(
-                schedule__teacher=user.teacher_profile
+                schedule__teacher=user.teacher_profile,
+                schedule__invitation__status='accepted'
             ).order_by('-scheduled_datetime')
         elif hasattr(user, 'student_profile'):
             return LiveClassSession.objects.filter(
-                schedule__student=user.student_profile
+                schedule__student=user.student_profile,
+                schedule__invitation__status='accepted'  
             ).order_by('-scheduled_datetime')
         else:
             return LiveClassSession.objects.none()
+
+class StudentInvitationListView(generics.ListAPIView):
+    serializer_class = LiveClassInvitationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        student_profile = get_object_or_404(StudentProfile, user=self.request.user)
+        return LiveClassInvitation.objects.filter(student=student_profile)
+
+
+class TeacherInvitationListView(generics.ListAPIView):
+    serializer_class = LiveClassInvitationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        teacher_profile = get_object_or_404(TeacherProfile, user=self.request.user)
+        return LiveClassInvitation.objects.filter(teacher=teacher_profile)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def respond_to_invitation(request, invitation_id):
+    """Student accepts/rejects an invitation."""
+    if not hasattr(request.user, 'student_profile'):
+        return Response({'error': 'Only student can respond to invitation'}, status=status.HTTP_403_FORBIDDEN)
+
+    invitation = get_object_or_404(LiveClassInvitation, invitation_id=invitation_id)
+    if invitation.student != request.user.student_profile:
+        return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = InvitationRespondSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    action = serializer.validated_data['action']
+
+    if invitation.status != 'pending':
+        return Response({'error': 'Invitation already responded'}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        if action == 'reject':
+            invitation.status = 'rejected'
+            invitation.responded_at = timezone.now()
+            invitation.save(update_fields=['status', 'responded_at'])
+
+            invitation.schedule.is_active = False
+            invitation.schedule.save(update_fields=['is_active'])
+
+            Notification.objects.create(
+                recipient=invitation.teacher.user,
+                sender=request.user,
+                notification_type='general',
+                title='Invitation Rejected',
+                message=f"Student ID: {invitation.student.id} rejected your invitation for {invitation.schedule.subject}."
+            )
+
+            return Response({'status': 'rejected'})
+
+        invitation.status = 'accepted'
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=['status', 'responded_at'])
+
+        demo_meeting = invitation.schedule.create_demo_class()
+        if demo_meeting:
+            LiveClassSession.objects.get_or_create(
+                schedule=invitation.schedule,
+                scheduled_datetime=demo_meeting.scheduled_time,
+                defaults={
+                    'meeting': demo_meeting,
+                    'duration': invitation.schedule.class_duration,
+                    'is_demo': True,
+                }
+            )
+
+                # Create next 7 days' sessions
+        from datetime import timedelta
+        schedule = invitation.schedule
+        today = timezone.now().date()
+
+        for i in range(7):
+            target_date = today + timedelta(days=i)
+            day_name = target_date.strftime('%A').lower()
+            
+            if day_name in schedule.class_days:
+                class_time_str = schedule.class_times.get(day_name)
+                if class_time_str:
+                    class_time = datetime.strptime(class_time_str, '%H:%M').time()
+                    scheduled_dt = timezone.make_aware(datetime.combine(target_date, class_time))
+                    
+                    # Skip if already created (demo)
+                    if not LiveClassSession.objects.filter(
+                        schedule=schedule,
+                        scheduled_datetime=scheduled_dt
+                    ).exists():
+                        LiveClassSession.objects.create(
+                            schedule=schedule,
+                            scheduled_datetime=scheduled_dt,
+                            duration=schedule.class_duration,
+                            is_demo=False
+                        )
+
+        Notification.objects.create(
+            recipient=invitation.teacher.user,
+            sender=request.user,
+            notification_type='general',
+            title='Invitation Accepted',
+            message=f"Student ID: {invitation.student.id} accepted your invitation for {invitation.schedule.subject}."
+        )
+
+    return Response({'status': 'accepted'})
 
 
 @api_view(['POST'])
@@ -203,6 +365,14 @@ def join_live_class(request, schedule_id):
     """Student or teacher joins a live class"""
     schedule = get_object_or_404(LiveClassSchedule, schedule_id=schedule_id)
     user = request.user
+    
+    # Check if invitation is accepted before allowing join
+    invitation = getattr(schedule, 'invitation', None)
+    if invitation and invitation.status != 'accepted':
+        return Response(
+            {'error': 'Invitation not yet accepted'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
     
     # Check if user can join
     if hasattr(user, 'student_profile'):
@@ -481,68 +651,3 @@ def upcoming_classes(request):
     upcoming.sort(key=lambda x: x['scheduled_time'])
     
     return Response(upcoming[:10])  # Return next 10 classes
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def upcoming_sessions(request):
-    """
-    List upcoming sessions for a student (or teacher)
-    Only for accepted jobs.
-    First session is demo class; after payment, further sessions.
-    """
-    user = request.user
-    now = timezone.now()
-    sessions = []
-
-    if hasattr(user, 'student_profile'):
-        applications = JobApplication.objects.filter(
-            job_post__student=user.student_profile,
-            status='accepted',
-            is_finalized=True
-        )
-    elif hasattr(user, 'teacher_profile'):
-        applications = JobApplication.objects.filter(
-            teacher=user.teacher_profile,
-            status='accepted',
-            is_finalized=True
-        )
-    else:
-        applications = JobApplication.objects.none()
-
-    for app in applications:
-        # Demo class
-        if app.demo_class_time:
-            demo_datetime = app.demo_class_time
-            if demo_datetime > now:
-                sessions.append({
-                    "type": "Demo Class",
-                    "student_id": str(app.job_post.student.id),
-                    "class_level": getattr(app.job_post.student, 'current_class', ''),
-                    "subject": app.job_post.subject,
-                    "date_day": demo_datetime.strftime("%Y-%m-%d"),
-                    "timings": f"{demo_datetime.strftime('%I:%M %p')} - {(demo_datetime + timedelta(hours=1)).strftime('%I:%M %p')}",
-                    "mode": app.job_post.teaching_mode,
-                    "teacher": app.teacher.user.get_full_name() or app.teacher.user.username
-                })
-
-        # Regular sessions (only if payment done)
-        if hasattr(app, 'payment_completed') and app.payment_completed:
-            # Example: assume weekly sessions
-            start_date = (app.demo_class_time + timedelta(days=7)) if app.demo_class_time else now
-            for i in range(4):  # next 4 weeks
-                session_date = start_date + timedelta(weeks=i)
-                sessions.append({
-                    "type": "Regular Class",
-                    "student_id": str(app.job_post.student.id),
-                    "class_level": getattr(app.job_post.student, 'current_class', ''),
-                    "subject": app.job_post.subject,
-                    "date_day": session_date.strftime("%Y-%m-%d"),
-                    "timings": f"{app.finalized_time_start.strftime('%I:%M %p')} - {app.finalized_time_end.strftime('%I:%M %p')}",
-                    "mode": app.job_post.teaching_mode,
-                    "teacher": app.teacher.user.get_full_name() or app.teacher.user.username
-                })
-
-    # Sort by date
-    sessions.sort(key=lambda x: x['date_day'])
-    return Response(sessions[:20])  # limit to next 20 sessions

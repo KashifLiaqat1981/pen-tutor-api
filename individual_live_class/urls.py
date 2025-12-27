@@ -17,6 +17,11 @@ urlpatterns = [
     path('student/subscriptions/', views.StudentSubscriptionListView.as_view(), name='student_subscriptions'),
     path('student/subscribe/', views.CreateSubscriptionView.as_view(), name='create_subscription'),
     
+    # Invitation URLs
+    path('student/invitations/', views.StudentInvitationListView.as_view(), name='student_invitations'),
+    path('teacher/invitations/', views.TeacherInvitationListView.as_view(), name='teacher_invitations'),
+    path('invitation/<uuid:invitation_id>/respond/', views.respond_to_invitation, name='respond_invitation'),
+    
     # Session Management
     path('sessions/', views.SessionListView.as_view(), name='session_list'),
     path('join/<uuid:schedule_id>/', views.join_live_class, name='join_class'),
@@ -35,5 +40,5 @@ urlpatterns = [
     # Analytics & Utility
     path('schedule/<uuid:schedule_id>/analytics/', views.schedule_analytics, name='schedule_analytics'),
     path('upcoming/', views.upcoming_classes, name='upcoming_classes'),
-    path('upcoming-sessions/', views.upcoming_sessions, name='upcoming-sessions'),
+
 ]
