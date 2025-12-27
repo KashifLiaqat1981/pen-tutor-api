@@ -47,7 +47,11 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.pen-tutor.vercel.app',
     'https://www.pentutor.com',
     "https://pentutor.com",
+    "https://pen-tutor-api.onrender.com"
 ]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -293,5 +297,6 @@ SWAGGER_SETTINGS = {
         }
     },
 }
+
 
 
