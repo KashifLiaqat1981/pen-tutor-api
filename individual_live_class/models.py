@@ -64,19 +64,29 @@ class LiveClassSchedule(models.Model):
         
         today = datetime.now().date()
         current_time = datetime.now().time()
+        base_date = max(today, self.start_date)
+        if self.end_date and base_date > self.end_date:
+            return None
         
         # Check if there's a class today that hasn't passed
-        today_day = today.strftime('%A').lower()
-        if today_day in self.class_days:
-            class_time_str = self.class_times.get(today_day)
+        base_day = base_date.strftime('%A').lower()
+        if base_day in self.class_days:
+            class_time_str = self.class_times.get(base_day)
             if class_time_str:
                 class_time = datetime.strptime(class_time_str, '%H:%M').time()
-                if current_time < class_time:
-                    return datetime.combine(today, class_time)
+                if base_date != today or current_time < class_time:
+                    candidate = datetime.combine(base_date, class_time)
+                    if self.end_date and candidate.date() > self.end_date:
+                        return None
+                    return candidate
+
+        
         
         # Find next class date
         for i in range(1, 8):  # Check next 7 days
-            check_date = today + timedelta(days=i)
+            check_date = base_date + timedelta(days=i)
+            if self.end_date and check_date > self.end_date:
+                return None
             check_day = check_date.strftime('%A').lower()
             if check_day in self.class_days:
                 class_time_str = self.class_times.get(check_day)
@@ -86,6 +96,12 @@ class LiveClassSchedule(models.Model):
         
         return None
     
+    @property
+    def status(self):
+        """Get status from invitation"""
+        if hasattr(self, 'invitation'):
+            return self.invitation.status
+        return 'no_invitation'
     def create_demo_class(self):
         """Create demo meeting for first class"""
         next_class = self.get_next_class_date()
@@ -121,6 +137,37 @@ class LiveClassSchedule(models.Model):
     
     class Meta:
         unique_together = ['teacher', 'student', 'subject']
+
+
+class LiveClassInvitation(models.Model):
+    """Student invitation created when a teacher proposes a new individual schedule."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    invitation_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    schedule = models.OneToOneField(LiveClassSchedule, on_delete=models.CASCADE, related_name='invitation')
+    teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='live_class_invitations')
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='live_class_invitations')
+
+    # Snapshot details for UI (avoid recalculation changes after edits)
+    first_class_datetime = models.DateTimeField(null=True, blank=True)
+    budget = models.DecimalField(max_digits=10, decimal_places=2)
+    is_demo_free = models.BooleanField(default=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    responded_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Invitation {self.invitation_id} - {self.teacher.full_name} -> {self.student.full_name}"
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class LiveClassSubscription(models.Model):

@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from datetime import datetime, timedelta
+from django.db.models import Q
 
 from .models import LiveClassPayment, LiveClassSchedule, LiveClassSubscription, LiveClassSession
 from notifications.models import Notification
@@ -13,7 +14,9 @@ from notifications.models import Notification
 @shared_task
 def create_scheduled_sessions():
     """Create sessions for all active schedules for the next week"""
-    active_schedules = LiveClassSchedule.objects.filter(is_active=True)
+    active_schedules = LiveClassSchedule.objects.filter(is_active=True, invitation__status='accepted').filter(
+        Q(invitation__status='accepted') | Q(invitation__isnull=True)
+    )
     
     for schedule in active_schedules:
         # Create sessions for the next 7 days
